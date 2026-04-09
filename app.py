@@ -3,7 +3,8 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from mido import Message, MidiFile, MidiTrack, MetaMessage, bpm2tempo
 from pathlib import Path
-import tempfile, zipfile
+import tempfile
+import zipfile
 
 app = FastAPI(title="Dream Trance MIDI Generator V1.1")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -13,24 +14,36 @@ STEMS = [
     "kick", "clap_snare", "hats", "offbeat_bass", "rolling_bass", "arp", "pluck", "pad",
     "supersaw_chords", "lead", "countermelody", "strings", "piano", "vocal_melody"
 ]
-NOTE = {"C":0,"C#":1,"Db":1,"D":2,"D#":3,"Eb":3,"E":4,"F":5,"F#":6,"Gb":6,"G":7,"G#":8,"Ab":8,"A":9,"A#":10,"Bb":10,"B":11}
-SCALES = {"minor":[0,2,3,5,7,8,10]}
+NOTE = {
+    "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5,
+    "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11
+}
+SCALES = {"minor": [0, 2, 3, 5, 7, 8, 10]}
 PROGRESSIONS = {
-    "Emotional Lift (i-VI-III-VII)": [1,6,3,7],
-    "Classic Uplift (i-iv-VI-VII)": [1,4,6,7],
-    "Festival Drive (VI-III-VII-i)": [6,3,7,1],
-    "Hopeful Pull (i-v-VI-iv)": [1,5,6,4],
+    "Emotional Lift (i-VI-III-VII)": [1, 6, 3, 7],
+    "Classic Uplift (i-iv-VI-VII)": [1, 4, 6, 7],
+    "Festival Drive (VI-III-VII-i)": [6, 3, 7, 1],
+    "Hopeful Pull (i-v-VI-iv)": [1, 5, 6, 4],
 }
 ARRANGEMENTS = {
-    "Club/Extended": [("Intro",16),("Verse",16),("Build",16),("Drop 1",32),("Breakdown",24),("Build 2",16),("Drop 2",32),("Outro",16)],
-    "Radio/Compact": [("Intro",8),("Verse",16),("Build",8),("Drop 1",24),("Breakdown",16),("Build 2",8),("Drop 2",24),("Outro",8)],
-    "Breakdown Focused": [("Intro",12),("Verse",16),("Build",12),("Drop 1",24),("Breakdown",32),("Build 2",16),("Drop 2",24),("Outro",12)],
+    "Club/Extended": [
+        ("Intro", 16), ("Verse", 16), ("Build", 16), ("Drop 1", 32),
+        ("Breakdown", 24), ("Build 2", 16), ("Drop 2", 32), ("Outro", 16)
+    ],
+    "Radio/Compact": [
+        ("Intro", 8), ("Verse", 16), ("Build", 8), ("Drop 1", 24),
+        ("Breakdown", 16), ("Build 2", 8), ("Drop 2", 24), ("Outro", 8)
+    ],
+    "Breakdown Focused": [
+        ("Intro", 12), ("Verse", 16), ("Build", 12), ("Drop 1", 24),
+        ("Breakdown", 32), ("Build 2", 16), ("Drop 2", 24), ("Outro", 12)
+    ],
 }
-ENERGY_LEVELS = {"Low":0.8,"Medium":1.0,"High":1.2}
+ENERGY_LEVELS = {"Low": 0.8, "Medium": 1.0, "High": 1.2}
 VOCAL_RANGES = {
-    "Female Soprano": (72,84),
-    "Female Airy": (69,81),
-    "Male Tenor": (60,72),
+    "Female Soprano": (72, 84),
+    "Female Airy": (69, 81),
+    "Male Tenor": (60, 72),
 }
 
 HTML = """
@@ -433,30 +446,27 @@ HTML = """
 
               <div class="field">
                 <label for="key_root">Key Root</label>
-                <select id="key_root" name="key_root">{key_opts}</select>
+                <select id="key_root" name="key_root">__KEY_OPTS__</select>
               </div>
 
               <div class="field full">
                 <label for="progression">Progression</label>
-               <select id="progression" name="progression">{prog_opts}</select>
+                <select id="progression" name="progression">__PROG_OPTS__</select>
               </div>
 
               <div class="field">
                 <label for="arrangement">Arrangement</label>
-                <select id="arrangement" name="arrangement">{arr_opts}</select>
+                <select id="arrangement" name="arrangement">__ARR_OPTS__</select>
               </div>
 
               <div class="field">
                 <label for="energy">Energy</label>
-                <select id="energy" name="energy">{energy_opts}</select>
+                <select id="energy" name="energy">__ENERGY_OPTS__</select>
               </div>
 
               <div class="field full">
                 <label for="vocalist">Vocalist</label>
-                <select id="vocalist" name="vocalist">{vocal_opts}</select>
-                <ul class="stem-list">
-  {stem_items}
-</ul>
+                <select id="vocalist" name="vocalist">__VOCAL_OPTS__</select>
               </div>
             </div>
 
@@ -484,7 +494,7 @@ HTML = """
         <div class="tip">
           <h3>Included stems</h3>
           <ul class="stem-list">
-            {stem_items}
+            __STEM_ITEMS__
           </ul>
         </div>
 
@@ -509,13 +519,36 @@ HTML = """
 
 def html_page():
     html = HTML
-    html = html.replace("__KEY_OPTS__", "".join(f"<option>{k}</option>" for k in ["F","F#","G","G#","A","A#","C","D"]))
-    html = html.replace("__PROG_OPTS__", "".join(f"<option>{p}</option>" for p in PROGRESSIONS))
-    html = html.replace("__ARR_OPTS__", "".join(f"<option>{a}</option>" for a in ARRANGEMENTS))
-    html = html.replace("__ENERGY_OPTS__", "".join(f"<option>{e}</option>" for e in ENERGY_LEVELS))
-    html = html.replace("__VOCAL_OPTS__", "".join(f"<option>{v}</option>" for v in VOCAL_RANGES))
-    html = html.replace("__STEM_ITEMS__", "".join(f"<li>{s}</li>" for s in STEMS))
+    html = html.replace(
+        "__KEY_OPTS__",
+        "".join(f"<option>{k}</option>" for k in ["F", "F#", "G", "G#", "A", "A#", "C", "D"])
+    )
+    html = html.replace(
+        "__PROG_OPTS__",
+        "".join(f"<option>{p}</option>" for p in PROGRESSIONS)
+    )
+    html = html.replace(
+        "__ARR_OPTS__",
+        "".join(f"<option>{a}</option>" for a in ARRANGEMENTS)
+    )
+    html = html.replace(
+        "__ENERGY_OPTS__",
+        "".join(f"<option>{e}</option>" for e in ENERGY_LEVELS)
+    )
+    html = html.replace(
+        "__VOCAL_OPTS__",
+        "".join(f"<option>{v}</option>" for v in VOCAL_RANGES)
+    )
+    html = html.replace(
+        "__STEM_ITEMS__",
+        "".join(f"<li>{s}</li>" for s in STEMS)
+    )
     return html
+
+
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return html_page()
 
 
 def tick(beats: float) -> int:
@@ -526,7 +559,7 @@ def bar_tick(bar_index: int) -> int:
     return tick(bar_index * 4)
 
 
-def note_name_to_midi(root: str, degree: int, octave: int = 4, mode="minor"):
+def note_name_to_midi(root: str, degree: int, octave: int = 4, mode: str = "minor"):
     scale = SCALES[mode]
     root_pc = NOTE[root]
     pc = (root_pc + scale[(degree - 1) % 7]) % 12
@@ -535,10 +568,13 @@ def note_name_to_midi(root: str, degree: int, octave: int = 4, mode="minor"):
 
 def progression_chords(root: str, progression_name: str):
     degs = PROGRESSIONS[progression_name]
-    triad_map = {1:(1,3,5),2:(2,4,6),3:(3,5,7),4:(4,6,1),5:(5,7,2),6:(6,1,3),7:(7,2,4)}
+    triad_map = {
+        1: (1, 3, 5), 2: (2, 4, 6), 3: (3, 5, 7), 4: (4, 6, 1),
+        5: (5, 7, 2), 6: (6, 1, 3), 7: (7, 2, 4)
+    }
     chords = []
     for d in degs:
-        chord = [note_name_to_midi(root, dd, 4 if dd not in (6,7) else 3) for dd in triad_map[d]]
+        chord = [note_name_to_midi(root, dd, 4 if dd not in (6, 7) else 3) for dd in triad_map[d]]
         chords.append((d, sorted(chord)))
     return chords
 
@@ -580,15 +616,24 @@ def energy_profile(section_name: str, energy_factor: float):
         "outro": {"dens": 0.35, "vel": 70},
         "other": {"dens": 0.5, "vel": 80},
     }[typ]
-    return {"density": min(1.0, base["dens"] * energy_factor), "vel": min(124, int(base["vel"] * energy_factor))}
+    return {
+        "density": min(1.0, base["dens"] * energy_factor),
+        "vel": min(124, int(base["vel"] * energy_factor))
+    }
 
 
 def add_events(event_list, start_tick, notes, length_tick, velocity=90, channel=0):
     if isinstance(notes, int):
         notes = [notes]
     for n in notes:
-        event_list.append((start_tick, Message("note_on", note=int(n), velocity=int(max(1, min(127, velocity))), channel=channel, time=0)))
-        event_list.append((start_tick + length_tick, Message("note_off", note=int(n), velocity=0, channel=channel, time=0)))
+        event_list.append((
+            start_tick,
+            Message("note_on", note=int(n), velocity=int(max(1, min(127, velocity))), channel=channel, time=0)
+        ))
+        event_list.append((
+            start_tick + length_tick,
+            Message("note_off", note=int(n), velocity=0, channel=channel, time=0)
+        ))
 
 
 def finalise_track(name, tempo, events, markers=None):
@@ -665,12 +710,12 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
 
             if stype in ("verse", "build", "drop", "outro"):
                 kick_pattern = [0, 1, 2, 3] if stype in ("drop", "outro") or local_bar > 1 else [0, 2]
-                for beat_pos in kick_pattern:
-                    add_events(tracks["kick"], bar_start + tick(beat_pos), 36, tick(0.45), velocity=110 if stype == "drop" else 95)
+                for beat in kick_pattern:
+                    add_events(tracks["kick"], bar_start + tick(beat), 36, tick(0.45), velocity=110 if stype == "drop" else 95)
 
             if stype in ("verse", "build", "drop"):
-                for beat_pos in (1, 3):
-                    add_events(tracks["clap_snare"], bar_start + tick(beat_pos), 39, tick(0.25), velocity=98 if stype == "drop" else 88)
+                for beat in (1, 3):
+                    add_events(tracks["clap_snare"], bar_start + tick(beat), 39, tick(0.25), velocity=98 if stype == "drop" else 88)
 
             if stype in ("build", "drop"):
                 for off in [0.5, 1.5, 2.5, 3.5]:
@@ -714,7 +759,6 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                         add_events(tracks["lead"], bar_start + tick(start + j * 0.25), n, tick(0.22), velocity=100)
                 if local_bar % 4 == 3:
                     add_events(tracks["countermelody"], bar_start + tick(2), [motif[1] - 12, motif[2] - 12, motif[4] - 12], tick(1.5), velocity=74)
-
             elif stype == "breakdown" and local_bar % 2 == 0:
                 phrase = [motif[0] - 12, motif[1] - 12, motif[2] - 12, motif[1] - 12]
                 for j, n in enumerate(phrase):
@@ -734,14 +778,13 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                     phrase = [high_chord[2], high_chord[1], high_chord[0]]
                     starts = [0, 1.25, 2.5]
                     lens = [1.0, 0.9, 1.3]
-
                 for n, st, ln in zip(phrase, starts, lens):
                     add_events(tracks["vocal_melody"], bar_start + tick(st), n, tick(ln), velocity=82 if stype != "build" else 90)
 
     out_zip.parent.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as td:
-        td = Path(td)
+        td_path = Path(td)
         combined = MidiFile(type=1, ticks_per_beat=TICKS)
         combined.tracks.append(finalise_track("Markers", tempo, [], markers=markers))
 
@@ -749,14 +792,14 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
             mf = MidiFile(type=1, ticks_per_beat=TICKS)
             track = finalise_track(stem, tempo, tracks[stem][:], markers=markers if stem == "kick" else None)
             mf.tracks.append(track)
-            stem_path = td / f"{stem}.mid"
+            stem_path = td_path / f"{stem}.mid"
             mf.save(stem_path)
             combined.tracks.append(finalise_track(stem, tempo, tracks[stem][:]))
 
-        combined_path = td / "full_arrangement.mid"
+        combined_path = td_path / "full_arrangement.mid"
         combined.save(combined_path)
 
-        notes = td / "production_notes.txt"
+        notes = td_path / "production_notes.txt"
         sections_text = "\\n".join(f"- {s['name']}: bars {s['start_bar'] + 1}-{s['end_bar']}" for s in sections)
         notes.write_text(
             f"Dream Trance MIDI Generator V1.1\\n\\n"
@@ -779,7 +822,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
             zf.write(combined_path, combined_path.name)
             zf.write(notes, notes.name)
             for stem in STEMS:
-                p = td / f"{stem}.mid"
+                p = td_path / f"{stem}.mid"
                 zf.write(p, f"stems/{p.name}")
 
 
