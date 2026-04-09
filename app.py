@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import zipfile
 
-app = FastAPI(title="Dream Trance MIDI Generator V2.8")
+app = FastAPI(title="Dream Trance MIDI Generator V2.9")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 TICKS = 480
@@ -78,7 +78,7 @@ HTML = """
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dream Trance MIDI Generator V2.8</title>
+  <title>Dream Trance MIDI Generator V2.9</title>
   <style>
     :root {
       --bg: #061121;
@@ -431,10 +431,10 @@ HTML = """
   <div class="shell">
     <section class="hero">
       <div class="hero-card">
-        <div class="eyebrow">Dream Trance MIDI Generator • V2.8 Anthem Engine</div>
-        <h1>Build uplifting trance MIDI with a stronger anthem hook and cleaner emotional payoff.</h1>
+        <div class="eyebrow">Dream Trance MIDI Generator • V2.9 Festival Polish Engine</div>
+        <h1>Lock the hook, control the density, and push Drop 2 into a stronger festival payoff.</h1>
         <p class="sub">
-          V2.8 tightens the lead identity, simplifies Drop 1, enlarges Drop 2, and improves breakdown recall so the final drop feels more earned and more memorable.
+          V2.9 adds rhythm identity lock, stricter register separation, drop evolution, lighter Drop 1 arp use, tighter hat control, and a pre-drop impact gap so the final release feels bigger and cleaner.
         </p>
         <div class="pill">Exports aligned full-length stems + combined arrangement MIDI</div>
       </div>
@@ -442,7 +442,7 @@ HTML = """
       <div class="hero-side">
         <div class="stat">
           <div class="stat-label">Primary use</div>
-          <div class="stat-value">Anthem-style uplifting / melodic trance sketch generation</div>
+          <div class="stat-value">Festival-ready uplifting / melodic trance sketch generation</div>
         </div>
         <div class="stat">
           <div class="stat-label">Output</div>
@@ -505,14 +505,14 @@ HTML = """
 
       <aside class="sidebar">
         <div class="tip">
-          <h3>What changed in V2.8</h3>
+          <h3>What changed in V2.9</h3>
           <ul>
-            <li>One signature hook cell anchors the lead.</li>
-            <li>Drop 1 is simpler and more memorable.</li>
-            <li>Drop 2 is bigger, brighter, and more active.</li>
-            <li>Reduced arp clutter in the first drop.</li>
-            <li>Breakdown piano and lead recall are stronger.</li>
-            <li>Countermelody only answers in stronger gaps.</li>
+            <li>Hook rhythm is now locked across the anthem.</li>
+            <li>Drop 1 is cleaner and less crowded.</li>
+            <li>Drop 2 evolves internally across 32 bars.</li>
+            <li>Arp avoids masking the lead.</li>
+            <li>Hat density is more controlled.</li>
+            <li>Pre-drop micro-gap increases final impact.</li>
           </ul>
         </div>
 
@@ -674,7 +674,7 @@ def add_events(event_list, start_tick_value: int, notes, length_tick: int, veloc
         notes = [notes]
     for n in notes:
         event_list.append((start_tick_value, Message("note_on", note=int(n), velocity=int(velocity), channel=channel, time=0)))
-        event_list.append((start_tick_value + length_tick, Message("note_off", note=int(n), velocity=0, channel=channel, time=0)))
+        event_list.append((start_tick_value + max(1, length_tick), Message("note_off", note=int(n), velocity=0, channel=channel, time=0)))
 
 
 def finalise_track(name: str, tempo: int, events, markers=None):
@@ -724,97 +724,171 @@ def scale_notes_in_range(root: str, low: int, high: int):
 
 
 def nearest_note_from_pool(target: int, pool):
+    if not pool:
+        return target
     return min(pool, key=lambda x: (abs(x - target), x))
 
 
 def build_signature_hook_cell(root: str, first_chord, second_chord):
     """
-    Returns the core signature note set used across the anthem.
-    The goal is to keep vocabulary tight and recognisable.
+    V2.9:
+    Keep the hook tighter and more iconic.
+    The cell aims for one clear identity:
+    anchor -> support -> anchor -> lift -> resolve
     """
-    anchor = nearest_note_from_pool(note_name_to_midi(root, 5, 5), chord_tones_in_range(first_chord, 72, 84))
-    support = nearest_note_from_pool(note_name_to_midi(root, 3, 5), chord_tones_in_range(first_chord, 70, 84))
-    lift = nearest_note_from_pool(note_name_to_midi(root, 1, 6), chord_tones_in_range(second_chord, 72, 88))
-    resolve = nearest_note_from_pool(note_name_to_midi(root, 1, 5), chord_tones_in_range(first_chord, 67, 81))
+    first_pool = chord_tones_in_range(first_chord, 74, 86)
+    second_pool = chord_tones_in_range(second_chord, 76, 88)
+
+    anchor = nearest_note_from_pool(note_name_to_midi(root, 5, 5), first_pool)
+    support = nearest_note_from_pool(note_name_to_midi(root, 3, 5), first_pool)
+    lift = nearest_note_from_pool(note_name_to_midi(root, 1, 6), second_pool)
+    resolve = nearest_note_from_pool(note_name_to_midi(root, 1, 5), chord_tones_in_range(first_chord, 72, 84))
+    accent = nearest_note_from_pool(anchor + 12, chord_tones_in_range(first_chord, 84, 96))
+
     return {
-        "anchor": anchor,
-        "support": support,
-        "lift": lift,
-        "resolve": resolve,
+        "anchor": clamp(anchor, 74, 86),
+        "support": clamp(support, 72, 84),
+        "lift": clamp(lift, 76, 88),
+        "resolve": clamp(resolve, 71, 83),
+        "accent": clamp(accent, 84, 96),
     }
 
 
-def build_drop_blueprint(root: str, chords, drop_variant: int):
+def build_hook_rhythm_lock(drop_variant: int, phase: int):
     """
-    Signature cell:
-    anchor -> support -> anchor -> lift
-
-    Drop 1:
-    tighter, fewer notes, stronger memory
-
-    Drop 2:
-    same identity, more lift and slightly more motion
+    Rhythm identity lock.
+    Bars 1-2 preserve the same rhythmic fingerprint.
+    Later phases evolve but remain recognisably related.
     """
-    signature = build_signature_hook_cell(root, chords[0], chords[1])
+    if drop_variant == 1:
+        if phase == 0:
+            return [
+                (0.00, 0.75),
+                (1.00, 0.50),
+                (2.00, 0.50),
+                (3.00, 0.75),
+            ]
+        if phase == 1:
+            return [
+                (0.00, 0.75),
+                (1.00, 0.50),
+                (2.00, 0.50),
+                (2.875, 0.25),
+                (3.00, 0.75),
+            ]
+        if phase == 2:
+            return [
+                (0.00, 0.50),
+                (1.00, 0.50),
+                (2.00, 0.50),
+                (2.75, 0.25),
+                (3.00, 0.50),
+            ]
+        return [
+            (0.00, 0.75),
+            (1.00, 0.50),
+            (2.00, 0.50),
+            (2.75, 0.25),
+            (3.00, 1.00),
+        ]
 
-    if drop_variant == 2:
-        return {
-            0: [
-                (0.00, 0.75, signature["anchor"]),
-                (1.00, 0.50, signature["support"]),
-                (2.00, 0.50, signature["anchor"]),
-                (2.75, 0.25, signature["lift"]),
-                (3.00, 0.75, signature["lift"]),
-            ],
-            1: [
-                (0.00, 0.75, signature["anchor"]),
-                (1.00, 0.50, signature["support"]),
-                (2.00, 0.50, signature["anchor"]),
-                (2.75, 0.25, signature["lift"]),
-                (3.00, 0.75, signature["lift"]),
-            ],
-            2: [
-                (0.00, 0.50, signature["anchor"]),
-                (1.00, 0.50, signature["support"]),
-                (1.75, 0.50, signature["lift"]),
-                (2.50, 0.50, signature["support"]),
-                (3.25, 0.50, signature["anchor"]),
-            ],
-            3: [
-                (0.00, 0.75, signature["support"]),
-                (1.00, 0.50, signature["anchor"]),
-                (2.00, 0.50, signature["support"]),
-                (2.75, 0.25, signature["anchor"]),
-                (3.00, 1.00, signature["resolve"]),
-            ],
-        }
+    if phase == 0:
+        return [
+            (0.00, 0.75),
+            (1.00, 0.50),
+            (2.00, 0.50),
+            (2.875, 0.25),
+            (3.00, 0.75),
+        ]
+    if phase == 1:
+        return [
+            (0.00, 0.75),
+            (1.00, 0.50),
+            (1.75, 0.25),
+            (2.00, 0.50),
+            (2.875, 0.25),
+            (3.00, 0.75),
+        ]
+    if phase == 2:
+        return [
+            (0.00, 0.50),
+            (1.00, 0.50),
+            (1.75, 0.25),
+            (2.00, 0.50),
+            (2.75, 0.25),
+            (3.00, 0.50),
+            (3.50, 0.25),
+        ]
+    return [
+        (0.00, 0.50),
+        (0.75, 0.25),
+        (1.00, 0.50),
+        (1.75, 0.25),
+        (2.00, 0.50),
+        (2.75, 0.25),
+        (3.00, 0.75),
+    ]
 
-    return {
-        0: [
-            (0.00, 0.75, signature["anchor"]),
-            (1.00, 0.50, signature["support"]),
-            (2.00, 0.50, signature["anchor"]),
-            (3.00, 0.75, signature["lift"]),
-        ],
-        1: [
-            (0.00, 0.75, signature["anchor"]),
-            (1.00, 0.50, signature["support"]),
-            (2.00, 0.50, signature["anchor"]),
-            (3.00, 0.75, signature["lift"]),
-        ],
-        2: [
-            (0.00, 0.50, signature["anchor"]),
-            (1.00, 0.50, signature["support"]),
-            (2.00, 0.50, signature["lift"]),
-            (3.00, 0.50, signature["anchor"]),
-        ],
-        3: [
-            (0.00, 0.75, signature["support"]),
-            (1.00, 0.50, signature["anchor"]),
-            (2.00, 0.50, signature["support"]),
-            (3.00, 1.00, signature["resolve"]),
-        ],
-    }
+
+def build_pitch_sequence(signature, slot: int, phase: int, drop_variant: int):
+    """
+    Pitch identity remains deliberately limited.
+    """
+    if slot == 0:
+        if phase <= 1:
+            return [signature["anchor"], signature["support"], signature["anchor"], signature["lift"]]
+        return [signature["anchor"], signature["support"], signature["anchor"], signature["lift"], signature["lift"]]
+
+    if slot == 1:
+        if phase == 0:
+            return [signature["anchor"], signature["support"], signature["anchor"], signature["lift"]]
+        if phase == 1:
+            return [signature["anchor"], signature["support"], signature["anchor"], signature["lift"], signature["lift"]]
+        return [signature["anchor"], signature["support"], signature["lift"], signature["anchor"], signature["lift"]]
+
+    if slot == 2:
+        if phase == 0:
+            return [signature["anchor"], signature["support"], signature["lift"], signature["anchor"]]
+        if phase == 1:
+            return [signature["anchor"], signature["support"], signature["lift"], signature["support"], signature["anchor"]]
+        return [signature["anchor"], signature["support"], signature["lift"], signature["support"], signature["anchor"], signature["lift"]]
+
+    if drop_variant == 2 and phase >= 2:
+        return [signature["support"], signature["anchor"], signature["support"], signature["lift"], signature["resolve"], signature["accent"]]
+
+    if phase == 0:
+        return [signature["support"], signature["anchor"], signature["support"], signature["resolve"]]
+    if phase == 1:
+        return [signature["support"], signature["anchor"], signature["support"], signature["lift"], signature["resolve"]]
+    return [signature["support"], signature["anchor"], signature["support"], signature["lift"], signature["resolve"], signature["resolve"]]
+
+
+def drop_phase_for_bar(local_bar: int, total_bars: int):
+    """
+    Internal drop evolution:
+    1-8 establish
+    9-16 subtle variation
+    17-24 lift
+    25-32 final push
+    Works sensibly for 24-bar drops too.
+    """
+    if total_bars >= 32:
+        if local_bar < 8:
+            return 0
+        if local_bar < 16:
+            return 1
+        if local_bar < 24:
+            return 2
+        return 3
+
+    quarter = max(1, total_bars // 4)
+    if local_bar < quarter:
+        return 0
+    if local_bar < quarter * 2:
+        return 1
+    if local_bar < quarter * 3:
+        return 2
+    return 3
 
 
 def build_breakdown_recall_blueprint(root: str, chords):
@@ -840,8 +914,8 @@ def build_breakdown_recall_blueprint(root: str, chords):
 
 
 def adapt_note_to_bar(note: int, root: str, chord, section_kind: str):
-    chord_pool = chord_tones_in_range(chord, 60, 90)
-    scale_pool = scale_notes_in_range(root, 60, 90)
+    chord_pool = chord_tones_in_range(chord, 60, 96)
+    scale_pool = scale_notes_in_range(root, 60, 96)
 
     if section_kind in ("drop", "breakdown"):
         if note in chord_pool:
@@ -854,18 +928,44 @@ def adapt_note_to_bar(note: int, root: str, chord, section_kind: str):
 
 
 def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int, drop_variant: int):
-    blueprint = build_drop_blueprint(root, chords, drop_variant)
+    """
+    V2.9 lead rules:
+    - Rhythm lock preserved
+    - Pitch vocabulary constrained
+    - Register separation enforced
+    - Final phases lift more, but do not become chaotic
+    """
+    signature = build_signature_hook_cell(root, chords[0], chords[1])
     events = []
 
     for i in range(bars_to_write):
         local_slot = i % 4
         chord = chords[(absolute_start_bar + i) % len(chords)]
         bar_start = bar_tick(absolute_start_bar + i)
+        phase = drop_phase_for_bar(i, bars_to_write)
 
-        for beat_pos, beat_len, raw_note in blueprint[local_slot]:
+        rhythm = build_hook_rhythm_lock(drop_variant, phase)
+        notes = build_pitch_sequence(signature, local_slot, phase, drop_variant)
+
+        note_count = min(len(rhythm), len(notes))
+        for idx in range(note_count):
+            beat_pos, beat_len = rhythm[idx]
+            raw_note = notes[idx]
             note = adapt_note_to_bar(raw_note, root, chord, "drop")
-            length = tick(beat_len * 0.82)
-            events.append((bar_start + tick(beat_pos), note, length, velocity))
+            note = clamp(note, 74, 94)
+
+            length_multiplier = 0.84 if phase < 2 else 0.78
+            if phase == 3 and idx == note_count - 1:
+                length_multiplier = 0.90
+
+            note_velocity = velocity
+            if phase == 2 and idx in (2, 3):
+                note_velocity = clamp(note_velocity + 2, 1, 124)
+            if phase == 3 and idx >= max(0, note_count - 2):
+                note_velocity = clamp(note_velocity + 4, 1, 124)
+
+            add_length = tick(beat_len * length_multiplier)
+            events.append((bar_start + tick(beat_pos), note, add_length, note_velocity))
 
     return events
 
@@ -878,6 +978,7 @@ def generate_build_lead_events(root: str, chords, absolute_start_bar: int, bars_
         bar_start = bar_tick(absolute_start_bar + i)
         chord = chords[(absolute_start_bar + i) % len(chords)]
         local_slot = i % 4
+        last_four_bars = i >= max(0, bars_to_write - 4)
 
         if build_variant == 2:
             phrase_map = {
@@ -894,8 +995,21 @@ def generate_build_lead_events(root: str, chords, absolute_start_bar: int, bars_
                 3: [(0.00, 0.75, signature["support"]), (2.50, 1.00, signature["lift"])],
             }
 
-        for beat_pos, beat_len, raw_note in phrase_map[local_slot]:
+        phrase = phrase_map[local_slot][:]
+
+        if last_four_bars:
+            if i == bars_to_write - 2:
+                phrase.append((3.50, 0.25, signature["lift"]))
+            if i == bars_to_write - 1:
+                phrase = [
+                    (0.00, 0.50, signature["support"]),
+                    (1.00, 0.50, signature["anchor"]),
+                    (2.00, 0.50, signature["lift"]),
+                ]
+
+        for beat_pos, beat_len, raw_note in phrase:
             note = adapt_note_to_bar(raw_note, root, chord, "build")
+            note = clamp(note, 72, 92)
             events.append((bar_start + tick(beat_pos), note, tick(beat_len * 0.9), clamp(velocity - 6, 50, 118)))
 
     return events
@@ -912,6 +1026,7 @@ def generate_breakdown_recall_events(root: str, chords, absolute_start_bar: int,
 
         for beat_pos, beat_len, raw_note in blueprint[local_slot]:
             note = adapt_note_to_bar(raw_note, root, chord, "breakdown")
+            note = clamp(note, 60, 82)
             events.append((bar_start + tick(beat_pos), note, tick(beat_len), clamp(velocity - 18, 42, 98)))
 
     return events
@@ -977,21 +1092,39 @@ def add_offbeat_bass(track_events, start_tick_value: int, root_note: int, veloci
         add_events(track_events, start_tick_value + tick(beat_pos), root_note, tick(0.42), velocity=velocity)
 
 
-def add_rolling_bass(track_events, start_tick_value: int, chord, velocity: int, drop_variant: int):
+def add_rolling_bass(track_events, start_tick_value: int, chord, velocity: int, drop_variant: int, local_bar: int, total_bars: int):
     root_note = chord["root"] - 24
     fifth_note = chord["fifth"] - 24
+    phase = drop_phase_for_bar(local_bar, total_bars)
 
     if drop_variant == 2:
-        pattern = [root_note, root_note, fifth_note, root_note, root_note + 12, root_note, fifth_note, root_note]
-        lengths = [0.22, 0.20, 0.22, 0.18, 0.12, 0.18, 0.20, 0.22]
+        if phase < 2:
+            pattern = [root_note, root_note, fifth_note, root_note, root_note + 12, root_note, fifth_note, root_note]
+            lengths = [0.22, 0.20, 0.22, 0.18, 0.12, 0.18, 0.20, 0.22]
+        else:
+            pattern = [root_note, root_note, fifth_note, root_note, root_note + 12, fifth_note, root_note, root_note]
+            lengths = [0.22, 0.20, 0.22, 0.16, 0.12, 0.18, 0.18, 0.22]
         velocities = [velocity, velocity - 2, velocity - 3, velocity - 5, velocity - 10, velocity - 3, velocity - 4, velocity]
     else:
-        pattern = [root_note, root_note, fifth_note, root_note, root_note, root_note, fifth_note, root_note]
-        lengths = [0.22] * 8
+        if phase == 0:
+            pattern = [root_note, root_note, fifth_note, root_note, root_note, root_note, fifth_note, root_note]
+            lengths = [0.22] * 8
+        elif phase == 1:
+            pattern = [root_note, root_note, fifth_note, root_note, root_note + 12, root_note, fifth_note, root_note]
+            lengths = [0.22, 0.22, 0.22, 0.18, 0.12, 0.18, 0.20, 0.22]
+        else:
+            pattern = [root_note, root_note, fifth_note, root_note, root_note + 12, fifth_note, root_note, root_note]
+            lengths = [0.22, 0.20, 0.22, 0.16, 0.12, 0.18, 0.18, 0.22]
         velocities = [velocity] * 8
 
     for i, note in enumerate(pattern):
-        add_events(track_events, start_tick_value + tick(i * 0.5), note, tick(lengths[i]), velocity=clamp(velocities[i], 60, 122))
+        add_events(
+            track_events,
+            start_tick_value + tick(i * 0.5),
+            note,
+            tick(lengths[i]),
+            velocity=clamp(velocities[i], 60, 122)
+        )
 
 
 def add_kick(track_events, start_tick_value: int, section_kind: str, velocity: int):
@@ -1010,7 +1143,7 @@ def add_clap_snare(track_events, start_tick_value: int, section_kind: str, veloc
 
     if section_kind == "build" and is_last_bar_of_section:
         if is_build_2:
-            roll_positions = [0, 0.5, 1.0, 1.5, 2.0, 2.25, 2.5, 2.75, 3.0, 3.125, 3.25, 3.375, 3.5, 3.625, 3.75, 3.875]
+            roll_positions = [0, 0.5, 1.0, 1.5, 2.0, 2.25, 2.5, 2.75, 3.0, 3.125, 3.25, 3.375, 3.5, 3.625, 3.75]
         else:
             roll_positions = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.25, 3.5, 3.75]
 
@@ -1018,21 +1151,42 @@ def add_clap_snare(track_events, start_tick_value: int, section_kind: str, veloc
             add_events(track_events, start_tick_value + tick(beat_pos), 38, tick(0.08), velocity=clamp(76 + idx * 3, 76, 124))
 
 
-def add_hats(track_events, start_tick_value: int, section_kind: str, velocity: int, drop_variant: int = 1):
+def add_hats(track_events, start_tick_value: int, section_kind: str, velocity: int, drop_variant: int = 1, local_bar: int = 0, total_bars: int = 32):
     if section_kind in ("build", "drop"):
         for beat_pos in [0.5, 1.5, 2.5, 3.5]:
             add_events(track_events, start_tick_value + tick(beat_pos), 46, tick(0.14), velocity=velocity)
 
-    if section_kind == "drop":
-        if drop_variant == 2:
-            drop_positions = [0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75, 0.125, 1.125, 2.125, 3.125]
-            hat_velocity = clamp(velocity - 12, 40, 110)
-        else:
-            drop_positions = [0.75, 1.75, 2.75, 3.75]
-            hat_velocity = clamp(velocity - 18, 36, 96)
+    if section_kind != "drop":
+        return
 
-        for beat_pos in drop_positions:
-            add_events(track_events, start_tick_value + tick(beat_pos), 42, tick(0.08), velocity=hat_velocity)
+    phase = drop_phase_for_bar(local_bar, total_bars)
+
+    if drop_variant == 1:
+        if phase == 0:
+            drop_positions = [0.75, 1.75, 2.75, 3.75]
+            hat_velocity = clamp(velocity - 22, 32, 90)
+        elif phase == 1:
+            drop_positions = [0.25, 0.75, 1.75, 2.75, 3.75]
+            hat_velocity = clamp(velocity - 20, 34, 94)
+        else:
+            drop_positions = [0.25, 0.75, 1.75, 2.25, 2.75, 3.75]
+            hat_velocity = clamp(velocity - 18, 36, 96)
+    else:
+        if phase == 0:
+            drop_positions = [0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75]
+            hat_velocity = clamp(velocity - 16, 38, 102)
+        elif phase == 1:
+            drop_positions = [0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75, 1.125, 3.125]
+            hat_velocity = clamp(velocity - 14, 40, 106)
+        elif phase == 2:
+            drop_positions = [0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75, 0.125, 2.125]
+            hat_velocity = clamp(velocity - 13, 42, 108)
+        else:
+            drop_positions = [0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75, 0.125, 1.125, 2.125]
+            hat_velocity = clamp(velocity - 12, 44, 110)
+
+    for beat_pos in drop_positions:
+        add_events(track_events, start_tick_value + tick(beat_pos), 42, tick(0.08), velocity=hat_velocity)
 
 
 def add_pad_strings_piano(tracks, start_tick_value: int, chord, section_kind: str, velocity: int, local_bar: int, lift_level: int = 1):
@@ -1083,59 +1237,137 @@ def add_breakdown_piano(tracks, start_tick_value: int, root: str, chord, global_
         )
 
 
-def add_arp(tracks, start_tick_value: int, chord, section_kind: str, velocity: int, drop_variant: int = 1):
+def add_arp(tracks, start_tick_value: int, chord, section_kind: str, velocity: int, drop_variant: int = 1, local_bar: int = 0, total_bars: int = 32):
+    """
+    V2.9 arp restraint:
+    - breakdown very light
+    - Drop 1 sparse
+    - Drop 2 fuller, but still avoids lead masking
+    - arp sits above the lead register and avoids the hook accents
+    """
     if section_kind not in ("build", "drop", "breakdown"):
         return
 
-    if section_kind == "drop":
-        if drop_variant == 1:
-            arp_notes = [chord["root"] + 12, chord["third"] + 12, chord["fifth"] + 12, chord["third"] + 12]
-            step = 0.5
+    if section_kind == "breakdown":
+        arp_notes = [chord["third"] + 24, chord["fifth"] + 24]
+        positions = [0.75, 2.75]
+        for i, beat_pos in enumerate(positions):
+            add_events(
+                tracks["arp"],
+                start_tick_value + tick(beat_pos),
+                clamp(arp_notes[i % len(arp_notes)], 88, 103),
+                tick(0.24),
+                velocity=clamp(velocity - 18, 28, 74)
+            )
+        return
+
+    if section_kind == "build":
+        arp_notes = [chord["root"] + 24, chord["third"] + 24, chord["fifth"] + 24, chord["third"] + 24]
+        positions = [0.50, 1.50, 2.50, 3.50]
+        for i, beat_pos in enumerate(positions):
+            add_events(
+                tracks["arp"],
+                start_tick_value + tick(beat_pos),
+                clamp(arp_notes[i % len(arp_notes)], 88, 103),
+                tick(0.28),
+                velocity=clamp(velocity - 8, 34, 86)
+            )
+        return
+
+    phase = drop_phase_for_bar(local_bar, total_bars)
+
+    if drop_variant == 1:
+        if phase == 0:
+            positions = [0.50, 1.50, 2.50]
+        elif phase == 1:
+            positions = [0.50, 1.50, 2.50, 3.50]
         else:
-            arp_notes = [chord["root"] + 12, chord["third"] + 12, chord["fifth"] + 12, chord["root"] + 24]
-            step = 0.25
-    elif section_kind == "build":
-        arp_notes = [chord["root"] + 12, chord["third"] + 12, chord["fifth"] + 12, chord["third"] + 12]
-        step = 0.5
+            positions = [0.50, 1.50, 2.50, 3.50]
+        arp_notes = [chord["root"] + 24, chord["third"] + 24, chord["fifth"] + 24, chord["root"] + 24]
+        arp_velocity = clamp(velocity - 12, 32, 88)
+        note_len = 0.24
     else:
-        arp_notes = [chord["root"] + 12, chord["third"] + 12, chord["fifth"] + 12, chord["third"] + 12]
-        step = 0.5
+        if phase == 0:
+            positions = [0.50, 1.50, 2.50, 3.50]
+        elif phase == 1:
+            positions = [0.50, 1.50, 2.50, 3.50, 1.25]
+        elif phase == 2:
+            positions = [0.50, 1.50, 2.50, 3.50, 1.25, 3.25]
+        else:
+            positions = [0.50, 1.50, 2.50, 3.50, 0.75, 2.75]
+        arp_notes = [chord["root"] + 24, chord["third"] + 24, chord["fifth"] + 24, chord["root"] + 36]
+        arp_velocity = clamp(velocity - 10, 36, 94)
+        note_len = 0.22
 
-    reps = int(4 / step)
-    for i in range(reps):
+    for i, beat_pos in enumerate(positions):
         note = arp_notes[i % len(arp_notes)]
-        if section_kind == "drop" and drop_variant == 2 and i % 8 == 7:
-            note += 12
-        add_events(tracks["arp"], start_tick_value + tick(i * step), note, tick(step * 0.72), velocity=velocity)
+        note = clamp(note, 88, 108)
+        add_events(
+            tracks["arp"],
+            start_tick_value + tick(beat_pos),
+            note,
+            tick(note_len),
+            velocity=arp_velocity
+        )
 
 
-def add_countermelody(tracks, start_tick_value: int, chord, local_bar: int, velocity: int, drop_variant: int = 1):
+def add_countermelody(tracks, start_tick_value: int, chord, local_bar: int, velocity: int, drop_variant: int = 1, total_bars: int = 32):
     """
     More selective response:
     - only bars 2 and 4
     - late in the bar
     - smaller in Drop 1, fuller in Drop 2
+    - kept below lead register
     """
     bar_slot = local_bar % 4
+    phase = drop_phase_for_bar(local_bar, total_bars)
 
     if bar_slot == 1:
         phrase = [
-            (2.75, 0.50, chord["third"] - 12),
-            (3.50, 0.40, chord["fifth"] - 12),
+            (2.75, 0.50, clamp(chord["third"] - 12, 60, 79)),
+            (3.50, 0.40, clamp(chord["fifth"] - 12, 60, 79)),
         ]
     elif bar_slot == 3:
         phrase = [
-            (2.50, 0.50, chord["root"]),
-            (3.25, 0.75, chord["third"]),
+            (2.50, 0.50, clamp(chord["root"], 60, 79)),
+            (3.25, 0.75, clamp(chord["third"], 60, 79)),
         ]
     else:
         return
 
-    if drop_variant == 2 and bar_slot == 3:
-        phrase = phrase + [(3.875, 0.10, chord["fifth"])]
+    if drop_variant == 2 and phase >= 2 and bar_slot == 3:
+        phrase = phrase + [(3.875, 0.10, clamp(chord["fifth"], 62, 81))]
 
     for beat_pos, beat_len, note in phrase:
         add_events(tracks["countermelody"], start_tick_value + tick(beat_pos), note, tick(beat_len), velocity=velocity)
+
+
+def add_predrop_impact_gap(tracks, bar_index: int):
+    """
+    Create a short silence before Drop 2 by ending sustained sources slightly early.
+    Drums already stop naturally because build ends on the previous bar.
+    """
+    gap_start = bar_tick(bar_index) + tick(3.75)
+    gap_end = bar_tick(bar_index + 1)
+
+    silence_note_ranges = {
+        "pad": range(24, 109),
+        "supersaw_chords": range(24, 109),
+        "strings": range(24, 109),
+        "arp": range(24, 109),
+        "lead": range(24, 109),
+        "piano": range(24, 109),
+        "pluck": range(24, 109),
+        "countermelody": range(24, 109),
+        "vocal_melody": range(24, 109),
+    }
+
+    for stem, note_range in silence_note_ranges.items():
+        for note in note_range:
+            tracks[stem].append((gap_start, Message("note_off", note=int(note), velocity=0, channel=0, time=0)))
+
+    tracks["hats"].append((gap_start, Message("note_off", note=42, velocity=0, channel=0, time=0)))
+    tracks["hats"].append((gap_start, Message("note_off", note=46, velocity=0, channel=0, time=0)))
 
 
 def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, energy: str, vocalist: str, out_zip: Path):
@@ -1147,6 +1379,14 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
 
     tracks = {stem: [] for stem in STEMS}
     markers = []
+
+    build2_start_bar = None
+    for sec in sections:
+        if sec["name"].lower() == "build 2":
+            build2_start_bar = sec["start_bar"]
+
+    if build2_start_bar is not None:
+        markers.append((bar_tick(build2_start_bar) + tick(3.75), "Pre-Drop Impact Gap"))
 
     for sec in sections:
         markers.append((bar_tick(sec["start_bar"]), f"{sec['name']} ({sec['bars']} bars)"))
@@ -1232,7 +1472,9 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                 start,
                 sec_kind,
                 clamp(local_velocity - 28, 40, 95),
-                drop_variant=drop_variant
+                drop_variant=drop_variant,
+                local_bar=local_bar,
+                total_bars=sec["bars"]
             )
             add_arp(
                 tracks,
@@ -1240,7 +1482,9 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                 chord,
                 sec_kind,
                 clamp(local_velocity - 22, 46, 104),
-                drop_variant=drop_variant
+                drop_variant=drop_variant,
+                local_bar=local_bar,
+                total_bars=sec["bars"]
             )
 
             if sec_kind in ("verse", "outro"):
@@ -1257,7 +1501,9 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                     start,
                     chord,
                     clamp(local_velocity - 10, 72, 120),
-                    drop_variant=drop_variant
+                    drop_variant=drop_variant,
+                    local_bar=local_bar,
+                    total_bars=sec["bars"]
                 )
                 add_countermelody(
                     tracks,
@@ -1265,7 +1511,8 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                     chord,
                     local_bar,
                     clamp(local_velocity - 24, 44, 100),
-                    drop_variant=drop_variant
+                    drop_variant=drop_variant,
+                    total_bars=sec["bars"]
                 )
 
             if sec_kind in ("verse", "breakdown", "build"):
@@ -1278,6 +1525,9 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                         tick(beat_len),
                         velocity=clamp(local_velocity - 2, 58, 108)
                     )
+
+        if is_build_2:
+            add_predrop_impact_gap(tracks, sec["end_bar"] - 1)
 
     out_zip.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1305,21 +1555,22 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
 
         notes_path = td / "production_notes.txt"
         notes_path.write_text(
-            "Dream Trance MIDI Generator V2.8\n\n"
+            "Dream Trance MIDI Generator V2.9\n\n"
             f"BPM: {bpm}\n"
             f"Key: {key_root} minor\n"
             f"Progression: {progression}\n"
             f"Arrangement: {arrangement}\n"
             f"Energy: {energy}\n"
             f"Vocalist: {vocalist}\n\n"
-            "V2.8 Anthem Engine:\n"
-            "- One signature lead hook cell\n"
-            "- Tighter pitch vocabulary for stronger memory\n"
-            "- Simpler Drop 1\n"
-            "- Bigger Drop 2\n"
-            "- Reduced Drop 1 arp clutter\n"
-            "- Stronger breakdown piano and lead recall\n"
-            "- More selective countermelody response\n\n"
+            "V2.9 Festival Polish Engine:\n"
+            "- Hook rhythm lock across anthem sections\n"
+            "- Tighter melodic identity with reduced pitch drift\n"
+            "- Cleaner Drop 1 with less arp and hat competition\n"
+            "- Drop 2 internal evolution across its full length\n"
+            "- Register separation between lead, arp, and countermelody\n"
+            "- Final 8-bar lift emphasis in later drop phases\n"
+            "- Pre-drop impact gap before Drop 2\n"
+            "- Stronger breakdown-to-final-drop payoff\n\n"
             f"Sections:\n{sections_text}\n"
         )
 
@@ -1342,6 +1593,6 @@ def generate(
 ):
     out_dir = Path("exports")
     out_dir.mkdir(exist_ok=True)
-    out_zip = out_dir / "dream_trance_midi_pack_v2_8.zip"
+    out_zip = out_dir / "dream_trance_midi_pack_v2_9.zip"
     generate_pack(bpm, key_root, progression, arrangement, energy, vocalist, out_zip)
     return FileResponse(out_zip, filename=out_zip.name, media_type="application/zip")
