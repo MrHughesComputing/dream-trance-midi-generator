@@ -438,7 +438,7 @@ HTML = """
 
               <div class="field full">
                 <label for="progression">Progression</label>
-                <select id="progression" name="progression">{prog_opts}</select>
+               <select id="progression" name="progression">{prog_opts}</select>
               </div>
 
               <div class="field">
@@ -454,6 +454,9 @@ HTML = """
               <div class="field full">
                 <label for="vocalist">Vocalist</label>
                 <select id="vocalist" name="vocalist">{vocal_opts}</select>
+                <ul class="stem-list">
+  {stem_items}
+</ul>
               </div>
             </div>
 
@@ -505,19 +508,14 @@ HTML = """
 
 
 def html_page():
-    return HTML.format(
-        key_opts="".join(f"<option>{k}</option>" for k in ["F","F#","G","G#","A","A#","C","D"]),
-        prog_opts="".join(f"<option>{p}</option>" for p in PROGRESSIONS),
-        arr_opts="".join(f"<option>{a}</option>" for a in ARRANGEMENTS),
-        energy_opts="".join(f"<option>{e}</option>" for e in ENERGY_LEVELS),
-        vocal_opts="".join(f"<option>{v}</option>" for v in VOCAL_RANGES),
-        stem_items="".join(f"<li>{s}</li>" for s in STEMS),
-    )
-
-
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return html_page()
+    html = HTML
+    html = html.replace("__KEY_OPTS__", "".join(f"<option>{k}</option>" for k in ["F","F#","G","G#","A","A#","C","D"]))
+    html = html.replace("__PROG_OPTS__", "".join(f"<option>{p}</option>" for p in PROGRESSIONS))
+    html = html.replace("__ARR_OPTS__", "".join(f"<option>{a}</option>" for a in ARRANGEMENTS))
+    html = html.replace("__ENERGY_OPTS__", "".join(f"<option>{e}</option>" for e in ENERGY_LEVELS))
+    html = html.replace("__VOCAL_OPTS__", "".join(f"<option>{v}</option>" for v in VOCAL_RANGES))
+    html = html.replace("__STEM_ITEMS__", "".join(f"<li>{s}</li>" for s in STEMS))
+    return html
 
 
 def tick(beats: float) -> int:
