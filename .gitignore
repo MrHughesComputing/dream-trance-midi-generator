@@ -8,3 +8,5 @@ venv/
 output/
 .DS_Store
 Thumbs.db
+exports/
+output/
