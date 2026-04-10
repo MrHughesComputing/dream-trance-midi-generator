@@ -1245,7 +1245,23 @@ def plan_drop_phrase_roles(section_name: str, bars: int):
     elif cycles == 2 and "drop 2" in section_name.lower():
         roles[-1] = "climax"
     elif cycles >= 2:
-        roles[-1] = "climax" if "drop 2" in section_name.lower() else max(["statement","variation","lift"], key=lambda r: {"statement":0,"variation":1,"lift":2}[roles[-1]])
+        role_priority = {
+    "statement": 0,
+    "variation": 1,
+    "lift": 2,
+    "climax": 3
+}
+
+if "drop 2" in section_name.lower():
+    roles[-1] = "climax"
+else:
+    current_role = roles[-1]
+    if current_role not in role_priority:
+        current_role = "statement"
+    roles[-1] = max(
+        ["statement", "variation", "lift"],
+        key=lambda r: role_priority[r]
+    )
     return roles
 
 
