@@ -16,7 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 EXPORTS_DIR = BASE_DIR / "exports"
 
-app = FastAPI(title="Dream Trance MIDI Generator V3.7")
+app = FastAPI(title="Dream Trance MIDI Generator V3.8")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
@@ -102,7 +102,7 @@ HTML = """
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dream Trance MIDI Generator V3.7</title>
+  <title>Dream Trance MIDI Generator V3.8</title>
   <style>
     :root {
       --bg: #061121;
@@ -455,10 +455,10 @@ HTML = """
   <div class="shell">
     <section class="hero">
       <div class="hero-card">
-        <div class="eyebrow">Dream Trance MIDI Generator • V3.7 Controlled Creativity Engine</div>
+        <div class="eyebrow">Dream Trance MIDI Generator • V3.8 Controlled Variation Engine</div>
         <h1>Push the generator toward motif-driven trance writing with evolving hook families, phrase-role-aware drops, breakdown memory, stronger countermelody, and a more decisive final Drop 2 climax.</h1>
         <p class="sub">
-          V3.7 preserves the V3.6 composition logic while adding controlled creativity, motif variability, rhythm-family rotation, and per-run idea generation without breaking trance-safe structure.
+          V3.8 preserves the V3.7 composition logic while fixing deterministic build lead output through controlled phrase, octave, rhythm, and hook-anchor variation.
         </p>
         <div class="pill">Exports aligned full-length stems + combined arrangement MIDI</div>
       </div>
@@ -2022,6 +2022,7 @@ def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_t
     return events
 
 
+
 def generate_build_lead_events(
     root: str,
     chords,
@@ -2038,6 +2039,11 @@ def generate_build_lead_events(
         rng = random.Random()
 
     signature = identity_blueprint["hook_signature"]
+    signature_note = clamp(
+        identity_blueprint.get("hero_note", max(signature["lift"], signature["accent"])),
+        72,
+        98,
+    )
     events = []
 
     for i in range(bars_to_write):
@@ -2054,6 +2060,15 @@ def generate_build_lead_events(
         }
 
         phrase = phrase_map[local_slot][:]
+
+        # V3.8 controlled phrase mutation:
+        # preserve the build identity, but vary pitch behaviour slightly per render
+        if rng.random() < 0.6:
+            mutated_phrase = []
+            for beat_pos, beat_len, raw_note in phrase:
+                shift = rng.choice([-1, 0, 1])
+                mutated_phrase.append((beat_pos, beat_len, raw_note + shift))
+            phrase = mutated_phrase
 
         if build_variant == 2 and local_slot in (2, 3):
             phrase.append((3.55, 0.18, signature["tension"] if local_slot == 2 else signature["apex"]))
@@ -2074,16 +2089,46 @@ def generate_build_lead_events(
 
         for idx, (beat_pos, beat_len, raw_note) in enumerate(phrase):
             note = adapt_note_to_bar(raw_note, root, chord, "build")
+
+            # V3.8 octave variation
+            octave_offset = 0
+            if rng.random() < 0.3:
+                octave_offset = rng.choice([-12, 12])
+            note = note + octave_offset
+
+            # V3.8 hook identity enforcement
+            # use the blueprint hero note as the correct track anchor in this codebase
+            if (idx == len(phrase) - 1 or beat_pos >= 3.0) and rng.random() < 0.3:
+                note = signature_note
+
+            note = adapt_note_to_bar(note, root, chord, "build")
             note = clamp(note, 72, 98)
+
             role = "support"
             if idx == len(phrase) - 1:
                 role = "strong"
             if last_four_bars and i == bars_to_write - 1 and idx == len(phrase) - 1:
                 role = "strong"
+
             vel = clamp(velocity + phrase_role_velocity_offset(role) - 8, 50, 122)
             if last_four_bars and beat_pos >= 3.0:
                 vel = clamp(vel + 4, 50, 122)
-            events.append((bar_start + tick(beat_pos), note, tick(beat_len * phrase_role_length_multiplier(role)), vel))
+
+            # V3.8 rhythm variation
+            varied_beat_len = beat_len
+            if rng.random() < 0.25:
+                varied_beat_len *= rng.choice([0.5, 1, 1.5])
+
+            varied_beat_len = max(0.12, min(1.20, varied_beat_len))
+
+            events.append(
+                (
+                    bar_start + tick(beat_pos),
+                    note,
+                    tick(varied_beat_len * phrase_role_length_multiplier(role)),
+                    vel,
+                )
+            )
 
     return events
 
@@ -2730,14 +2775,14 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
 
         notes_path = td / "production_notes.txt"
         notes_path.write_text(
-            "Dream Trance MIDI Generator V3.6\n\n"
+            "Dream Trance MIDI Generator V3.8\n\n"
             + "BPM: " + str(bpm) + "\n"
             + "Key: " + key_root + " minor\n"
             + "Progression: " + progression + "\n"
             + "Arrangement: " + arrangement + "\n"
             + "Energy: " + energy + "\n"
             + "Vocalist: " + vocalist + "\n\n"
-            + "V3.6 Motif Evolution Engine:\n"
+            + "V3.8 Controlled Variation Engine:\n"
             + "- New track identity blueprint locks the track around one dominant hook concept\n"
             + "- One hero note is enforced inside every 4-bar drop cycle\n"
             + "- A deliberate signature leap is forced into the hook so phrases are more memorable\n"
@@ -2774,13 +2819,13 @@ def generate(
     EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     request_id = uuid4().hex
-    out_zip = EXPORTS_DIR / ("dream_trance_midi_pack_v3_6_" + request_id + ".zip")
+    out_zip = EXPORTS_DIR / ("dream_trance_midi_pack_v3_8_" + request_id + ".zip")
 
     generate_pack(bpm, key_root, progression, arrangement, energy, vocalist, out_zip)
 
     return FileResponse(
         path=out_zip,
-        filename="dream_trance_midi_pack_v3_6.zip",
+        filename="dream_trance_midi_pack_v3_8.zip",
         media_type="application/zip",
         background=BackgroundTask(lambda: out_zip.unlink(missing_ok=True))
     )
