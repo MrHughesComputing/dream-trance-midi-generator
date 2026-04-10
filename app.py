@@ -1,13 +1,20 @@
-from fastapi import FastAPI, Form
-from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-from mido import Message, MidiFile, MidiTrack, MetaMessage, bpm2tempo
+from typing import Literal, Annotated
+from uuid import uuid4
 from pathlib import Path
 import tempfile
 import zipfile
 
-app = FastAPI(title="Dream Trance MIDI Generator V3.0")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+from fastapi import FastAPI, Form
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from mido import Message, MidiFile, MidiTrack, MetaMessage, bpm2tempo
+
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+EXPORTS_DIR = BASE_DIR / "exports"
+
+app = FastAPI(title="Dream Trance MIDI Generator V3.0.1")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 TICKS = 480
 BAR_TICKS = TICKS * 4
@@ -72,13 +79,26 @@ VOCAL_RANGES = {
     "Male Tenor": (60, 72),
 }
 
+KEY_ROOT_OPTIONS = ["F", "F#", "G", "G#", "A", "A#", "C", "D"]
+
+KeyRootType = Literal["F", "F#", "G", "G#", "A", "A#", "C", "D"]
+ProgressionType = Literal[
+    "Emotional Lift (i-VI-III-VII)",
+    "Classic Uplift (i-iv-VI-VII)",
+    "Festival Drive (VI-III-VII-i)",
+    "Hopeful Pull (i-v-VI-iv)",
+]
+ArrangementType = Literal["Club/Extended", "Radio/Compact", "Breakdown Focused"]
+EnergyType = Literal["Low", "Medium", "High"]
+VocalistType = Literal["Female Soprano", "Female Airy", "Male Tenor"]
+
 HTML = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dream Trance MIDI Generator V3.0</title>
+  <title>Dream Trance MIDI Generator V3.0.1</title>
   <style>
     :root {
       --bg: #061121;
@@ -431,10 +451,10 @@ HTML = """
   <div class="shell">
     <section class="hero">
       <div class="hero-card">
-        <div class="eyebrow">Dream Trance MIDI Generator • V3.0 Hook Authority Engine</div>
+        <div class="eyebrow">Dream Trance MIDI Generator • V3.0.1 Hook Authority Engine</div>
         <h1>Push the hook into anthem territory with stronger signature intervals, harder bar-4 payoff, and a more decisive Drop 2 arrival.</h1>
         <p class="sub">
-          V3.0 strengthens melodic authority by forcing a recognisable emotional gesture, protecting hook identity across variation, making phrase endings hit harder, deepening breakdown recall, and giving Drop 2 a more event-level opening.
+          V3.0.1 keeps the V3 hook authority work and adds safer export handling, server-side validation, and path stability improvements for more reliable real-world use.
         </p>
         <div class="pill">Exports aligned full-length stems + combined arrangement MIDI</div>
       </div>
@@ -505,13 +525,13 @@ HTML = """
 
       <aside class="sidebar">
         <div class="tip">
-          <h3>What changed in V3.0</h3>
+          <h3>What changed in V3.0.1</h3>
           <ul>
-            <li>Hook now uses a stronger signature interval behaviour.</li>
-            <li>Bar 4 payoff is more intentional and more anthem-like.</li>
-            <li>Breakdown recall is more emotional and less neutral.</li>
-            <li>Drop 2 opening bars arrive with greater authority.</li>
-            <li>Variation is more tightly anchored to core hook identity.</li>
+            <li>Hook authority logic from V3.0 is retained.</li>
+            <li>Each request now writes to a unique export ZIP.</li>
+            <li>Server-side BPM and form value validation added.</li>
+            <li>Static and export paths now use the app base directory.</li>
+            <li>Drop 2 arrival and bar-4 payoff logic remain intact.</li>
             <li>Pre-drop gap remains for final impact.</li>
           </ul>
         </div>
@@ -546,27 +566,27 @@ def html_page():
     html = HTML
     html = html.replace(
         "__KEY_OPTS__",
-        "".join(f"<option>{k}</option>" for k in ["F", "F#", "G", "G#", "A", "A#", "C", "D"])
+        "".join("<option>" + k + "</option>" for k in KEY_ROOT_OPTIONS)
     )
     html = html.replace(
         "__PROG_OPTS__",
-        "".join(f"<option>{p}</option>" for p in PROGRESSIONS)
+        "".join("<option>" + p + "</option>" for p in PROGRESSIONS)
     )
     html = html.replace(
         "__ARR_OPTS__",
-        "".join(f"<option>{a}</option>" for a in ARRANGEMENTS)
+        "".join("<option>" + a + "</option>" for a in ARRANGEMENTS)
     )
     html = html.replace(
         "__ENERGY_OPTS__",
-        "".join(f"<option>{e}</option>" for e in ENERGY_LEVELS)
+        "".join("<option>" + e + "</option>" for e in ENERGY_LEVELS)
     )
     html = html.replace(
         "__VOCAL_OPTS__",
-        "".join(f"<option>{v}</option>" for v in VOCAL_RANGES)
+        "".join("<option>" + v + "</option>" for v in VOCAL_RANGES)
     )
     html = html.replace(
         "__STEM_ITEMS__",
-        "".join(f"<li>{s}</li>" for s in STEMS)
+        "".join("<li>" + s + "</li>" for s in STEMS)
     )
     return html
 
@@ -1611,7 +1631,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
 
         notes_path = td / "production_notes.txt"
         notes_path.write_text(
-            "Dream Trance MIDI Generator V3.0\n\n"
+            "Dream Trance MIDI Generator V3.0.1\n\n"
             + "BPM: " + str(bpm) + "\n"
             + "Key: " + key_root + " minor\n"
             + "Progression: " + progression + "\n"
@@ -1625,6 +1645,10 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
             + "- More emotional breakdown recall and anticipation\n"
             + "- Stronger Drop 2 opening bars with firmer arrival impact\n"
             + "- Pre-drop impact gap retained before Drop 2\n\n"
+            + "V3.0.1 Stability Fixes:\n"
+            + "- Unique export ZIP file per request\n"
+            + "- Server-side form validation for bpm and select fields\n"
+            + "- Base-directory path handling for static and export folders\n\n"
             + "Sections:\n" + sections_text + "\n"
         )
 
@@ -1638,15 +1662,22 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
 
 @app.post("/generate")
 def generate(
-    bpm: int = Form(...),
-    key_root: str = Form(...),
-    progression: str = Form(...),
-    arrangement: str = Form(...),
-    energy: str = Form(...),
-    vocalist: str = Form(...),
+    bpm: Annotated[int, Form(..., ge=132, le=142)],
+    key_root: Annotated[KeyRootType, Form(...)],
+    progression: Annotated[ProgressionType, Form(...)],
+    arrangement: Annotated[ArrangementType, Form(...)],
+    energy: Annotated[EnergyType, Form(...)],
+    vocalist: Annotated[VocalistType, Form(...)],
 ):
-    out_dir = Path("exports")
-    out_dir.mkdir(exist_ok=True)
-    out_zip = out_dir / "dream_trance_midi_pack_v3_0.zip"
+    EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    request_id = uuid4().hex
+    out_zip = EXPORTS_DIR / ("dream_trance_midi_pack_v3_0_1_" + request_id + ".zip")
+
     generate_pack(bpm, key_root, progression, arrangement, energy, vocalist, out_zip)
-    return FileResponse(out_zip, filename=out_zip.name, media_type="application/zip")
+
+    return FileResponse(
+        path=out_zip,
+        filename="dream_trance_midi_pack_v3_0_1.zip",
+        media_type="application/zip"
+    )
