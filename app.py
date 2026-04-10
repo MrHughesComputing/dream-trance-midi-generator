@@ -2296,6 +2296,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                 p = td / (stem + ".mid")
                 zf.write(p, "stems/" + p.name)
 
+@app.post("/generate")
 def generate(
     bpm: Annotated[int, Form(..., ge=132, le=142)],
     key_root: Annotated[KeyRootType, Form(...)],
