@@ -7,13 +7,14 @@ import zipfile
 from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 from mido import Message, MidiFile, MidiTrack, MetaMessage, bpm2tempo
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 EXPORTS_DIR = BASE_DIR / "exports"
 
-app = FastAPI(title="Dream Trance MIDI Generator V3.2")
+app = FastAPI(title="Dream Trance MIDI Generator V3.3")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 TICKS = 480
@@ -98,7 +99,7 @@ HTML = """
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dream Trance MIDI Generator V3.2</title>
+  <title>Dream Trance MIDI Generator V3.3</title>
   <style>
     :root {
       --bg: #061121;
@@ -451,10 +452,10 @@ HTML = """
   <div class="shell">
     <section class="hero">
       <div class="hero-card">
-        <div class="eyebrow">Dream Trance MIDI Generator • V3.2 Anthem Payoff Engine</div>
-        <h1>Drive the hook deeper into anthem territory with a more inevitable signature gesture, harder bar-4 release, stronger internal phrase contrast, and a bigger Drop 2 opening.</h1>
+        <div class="eyebrow">Dream Trance MIDI Generator • V3.3 Hook Dominance Engine</div>
+        <h1>Push the generator toward melody-first trance writing with a more memorable 4-bar hook, stronger bar-4 payoff authority, cleaner layer separation, and a more rewarding Drop 2 escalation.</h1>
         <p class="sub">
-          V3.2 preserves the V3.0.1 stability improvements while fixing the flattened bar-4 problem, protecting melodic contour more intelligently, and restoring the intended spacious breakdown recall.
+          V3.3 preserves the V3.0.1 stability improvements while shifting the engine toward melody-first composition, stronger hook memory, cleaner support-lane behaviour, smarter breakdown recall, and a bigger second-drop emotional reward.
         </p>
         <div class="pill">Exports aligned full-length stems + combined arrangement MIDI</div>
       </div>
@@ -527,12 +528,12 @@ HTML = """
         <div class="tip">
           <h3>What changed in V3.2</h3>
           <ul>
-            <li>Lead hook now protects melodic contour more intelligently across changing chords.</li>
-            <li>Bar-4 payoff is rebuilt to avoid repeated-note collapse and land with clearer release.</li>
-            <li>Breakdown recall now uses the intended spacious recall blueprint without duplicate override.</li>
-            <li>Unique export ZIPs, server-side validation, and base-directory paths are preserved.</li>
-            <li>Hook identity remains tighter while preserving better internal contrast.</li>
-            <li>Drop 2 arrival gains a stronger opening while the pre-drop impact gap remains.</li>
+            <li>Lead generation is now more melody-first, with clearer statement, answer, lift, and payoff roles across each 4-bar cycle.</li>
+            <li>Bar-4 payoff phrases now drive harder toward a distinct terminal note instead of flattening rhythmically or melodically.</li>
+            <li>Drop 2 opens with more authority and adds a stronger late-phase reward profile.</li>
+            <li>Arp and pluck are separated more clearly into motion and punctuation lanes instead of generic busyness.</li>
+            <li>Breakdown recall is more longing-led and points more convincingly toward the final release.</li>
+            <li>Export cleanup is now handled after the ZIP response completes.</li>
           </ul>
         </div>
 
@@ -786,41 +787,47 @@ def adapt_drop_note_to_bar(note: int, root: str, chord, previous_note: int | Non
     return chosen
 
 
+
 def build_signature_hook_cell(root: str, first_chord, second_chord):
     """
-    V3.1:
-    Push the hook toward anthem-level inevitability.
-    The cell now prioritises:
-    - a stable anchor
-    - a recognisable upper leap
-    - a dedicated answer tone for bar 2 contrast
-    - a more authoritative payoff ladder for bar 4
+    V3.3:
+    Build a melody-first hook cell with stronger recognisable contour.
+    The generator now prioritises:
+    - a dependable anchor
+    - a memorable answer tone
+    - a dedicated anticipation lane
+    - a true payoff ladder that can finish high without sounding random
     """
-    first_pool = chord_tones_in_range(first_chord, 73, 90)
-    second_pool = chord_tones_in_range(second_chord, 73, 92)
+    first_pool = chord_tones_in_range(first_chord, 72, 90)
+    second_pool = chord_tones_in_range(second_chord, 72, 94)
+    scale_pool = scale_notes_in_range(root, 72, 96)
 
     anchor = nearest_note_from_pool(note_name_to_midi(root, 5, 5), first_pool)
     support = nearest_note_from_pool(note_name_to_midi(root, 3, 5), first_pool)
     answer = nearest_note_from_pool(note_name_to_midi(root, 1, 5), first_pool)
+    passing = nearest_note_from_pool(note_name_to_midi(root, 2, 5), scale_pool)
     pivot = nearest_note_from_pool(note_name_to_midi(root, 7, 5), second_pool)
     lift = nearest_note_from_pool(note_name_to_midi(root, 1, 6), second_pool)
     apex = nearest_note_from_pool(note_name_to_midi(root, 3, 6), second_pool)
     resolve = nearest_note_from_pool(note_name_to_midi(root, 1, 5), chord_tones_in_range(first_chord, 70, 84))
-    payoff = nearest_note_from_pool(note_name_to_midi(root, 5, 5), chord_tones_in_range(second_chord, 72, 87))
-    accent = nearest_note_from_pool(note_name_to_midi(root, 1, 6), chord_tones_in_range(second_chord, 83, 97))
+    payoff = nearest_note_from_pool(note_name_to_midi(root, 5, 5), chord_tones_in_range(second_chord, 72, 88))
+    accent = nearest_note_from_pool(note_name_to_midi(root, 1, 6), chord_tones_in_range(second_chord, 83, 98))
     final = nearest_note_from_pool(note_name_to_midi(root, 3, 6), chord_tones_in_range(second_chord, 84, 99))
+    terminal = nearest_note_from_pool(note_name_to_midi(root, 5, 6), scale_pool)
 
     return {
         "anchor": clamp(anchor, 74, 86),
         "support": clamp(support, 72, 84),
         "answer": clamp(answer, 71, 83),
+        "passing": clamp(passing, 72, 85),
         "pivot": clamp(pivot, 74, 88),
-        "lift": clamp(lift, 76, 90),
-        "apex": clamp(apex, 79, 93),
+        "lift": clamp(lift, 76, 91),
+        "apex": clamp(apex, 79, 94),
         "resolve": clamp(resolve, 71, 84),
-        "payoff": clamp(payoff, 72, 87),
-        "accent": clamp(accent, 84, 97),
+        "payoff": clamp(payoff, 72, 88),
+        "accent": clamp(accent, 84, 98),
         "final": clamp(final, 85, 99),
+        "terminal": clamp(terminal, 86, 100),
     }
 
 def build_hook_rhythm_lock(drop_variant: int, phase: int):
@@ -900,44 +907,47 @@ def build_hook_rhythm_lock(drop_variant: int, phase: int):
     ]
 
 
+
 def build_pitch_sequence(signature, slot: int, phase: int, drop_variant: int):
     """
-    V3.1:
-    Give each bar a clearer role inside the 4-bar hook loop.
+    V3.3:
+    Make the 4-bar loop feel more like a composed phrase.
     bar 1 = statement
-    bar 2 = answer / contrast
-    bar 3 = climb / anticipation
-    bar 4 = dedicated payoff handled elsewhere
+    bar 2 = answer
+    bar 3 = lift / anticipation
+    bar 4 = reserved for dedicated payoff handling elsewhere
     """
     if slot == 0:
         if phase == 0:
             return [signature["anchor"], signature["support"], signature["anchor"], signature["lift"]]
         if phase == 1:
-            return [signature["anchor"], signature["support"], signature["anchor"], signature["pivot"], signature["lift"]]
-        return [signature["anchor"], signature["support"], signature["anchor"], signature["pivot"], signature["lift"], signature["apex"]]
+            return [signature["anchor"], signature["support"], signature["answer"], signature["pivot"], signature["lift"]]
+        return [signature["anchor"], signature["support"], signature["answer"], signature["pivot"], signature["lift"], signature["apex"]]
 
     if slot == 1:
         if phase == 0:
             return [signature["answer"], signature["support"], signature["pivot"], signature["anchor"]]
         if phase == 1:
-            return [signature["answer"], signature["support"], signature["pivot"], signature["anchor"], signature["lift"]]
-        return [signature["answer"], signature["support"], signature["pivot"], signature["anchor"], signature["lift"], signature["pivot"]]
+            return [signature["answer"], signature["support"], signature["pivot"], signature["answer"], signature["lift"]]
+        return [signature["answer"], signature["support"], signature["pivot"], signature["answer"], signature["lift"], signature["pivot"]]
 
     if slot == 2:
         if phase == 0:
             return [signature["support"], signature["anchor"], signature["pivot"], signature["lift"]]
         if phase == 1:
             return [signature["support"], signature["anchor"], signature["pivot"], signature["lift"], signature["apex"]]
+        if drop_variant == 2:
+            return [signature["support"], signature["anchor"], signature["pivot"], signature["lift"], signature["apex"], signature["final"]]
         return [signature["support"], signature["anchor"], signature["pivot"], signature["lift"], signature["apex"], signature["lift"]]
 
     if drop_variant == 2 and phase >= 2:
-        return [signature["answer"], signature["anchor"], signature["pivot"], signature["lift"], signature["apex"], signature["final"]]
+        return [signature["answer"], signature["anchor"], signature["pivot"], signature["lift"], signature["apex"], signature["terminal"]]
 
     if phase == 0:
         return [signature["answer"], signature["anchor"], signature["pivot"], signature["payoff"]]
     if phase == 1:
         return [signature["answer"], signature["anchor"], signature["pivot"], signature["lift"], signature["payoff"]]
-    return [signature["answer"], signature["anchor"], signature["pivot"], signature["lift"], signature["payoff"], signature["resolve"]]
+    return [signature["answer"], signature["anchor"], signature["pivot"], signature["passing"], signature["payoff"], signature["resolve"]]
 
 def drop_phase_for_bar(local_bar: int, total_bars: int):
     if total_bars >= 32:
@@ -959,110 +969,117 @@ def drop_phase_for_bar(local_bar: int, total_bars: int):
     return 3
 
 
+
 def build_bar4_payoff_phrase(signature, drop_variant: int, phase: int):
     """
-    V3.2:
-    Phrase-end release must move, not flatten.
-    This version builds an audible pre-lift into a distinct terminal payoff note.
+    V3.3:
+    Phrase-end release must sound authored, not merely filled.
+    The phrase now aims for a distinct late-bar climb into a terminal note.
     """
     if drop_variant == 2:
         if phase >= 2:
             return [
-                (0.00, 0.45, signature["answer"]),
-                (0.90, 0.45, signature["anchor"]),
-                (1.80, 0.45, signature["pivot"]),
-                (2.55, 0.20, signature["lift"]),
-                (2.85, 0.30, signature["accent"]),
-                (3.25, 0.55, signature["final"]),
+                (0.00, 0.42, signature["answer"]),
+                (0.82, 0.42, signature["anchor"]),
+                (1.68, 0.42, signature["pivot"]),
+                (2.42, 0.24, signature["lift"]),
+                (2.78, 0.24, signature["apex"]),
+                (3.08, 0.24, signature["accent"]),
+                (3.38, 0.46, signature["terminal"]),
             ]
         return [
             (0.00, 0.45, signature["answer"]),
-            (1.00, 0.45, signature["anchor"]),
-            (2.00, 0.45, signature["pivot"]),
-            (2.80, 0.25, signature["lift"]),
-            (3.15, 0.55, signature["accent"]),
+            (0.95, 0.45, signature["anchor"]),
+            (1.90, 0.42, signature["pivot"]),
+            (2.75, 0.22, signature["lift"]),
+            (3.05, 0.28, signature["accent"]),
+            (3.38, 0.42, signature["final"]),
         ]
 
     if phase >= 2:
         return [
             (0.00, 0.45, signature["answer"]),
             (0.90, 0.45, signature["anchor"]),
-            (1.80, 0.45, signature["pivot"]),
+            (1.80, 0.42, signature["pivot"]),
             (2.55, 0.20, signature["lift"]),
-            (2.85, 0.30, signature["payoff"]),
-            (3.20, 0.60, signature["accent"]),
+            (2.86, 0.24, signature["payoff"]),
+            (3.18, 0.50, signature["accent"]),
         ]
     return [
         (0.00, 0.45, signature["answer"]),
         (1.00, 0.45, signature["anchor"]),
         (1.90, 0.40, signature["pivot"]),
-        (2.75, 0.25, signature["lift"]),
-        (3.10, 0.65, signature["payoff"]),
+        (2.72, 0.24, signature["lift"]),
+        (3.04, 0.58, signature["payoff"]),
     ]
+
 
 
 def build_drop2_arrival_phrase(signature, phase: int, bar_index: int):
     """
-    V3.1:
-    The first two bars of Drop 2 should feel like an event.
-    Start with immediate recognisable authority, then answer with lift.
+    V3.3:
+    Drop 2 should feel more rewarding than Drop 1 immediately.
+    The first two bars now prioritise authority, lift, and recognisable memory.
     """
     if bar_index == 0:
         if phase >= 2:
             return [
-                (0.00, 0.75, signature["anchor"]),
-                (1.00, 0.50, signature["pivot"]),
-                (2.00, 0.50, signature["lift"]),
-                (2.70, 0.20, signature["apex"]),
-                (3.00, 0.30, signature["accent"]),
-                (3.35, 0.45, signature["final"]),
+                (0.00, 0.68, signature["anchor"]),
+                (0.90, 0.42, signature["pivot"]),
+                (1.70, 0.34, signature["lift"]),
+                (2.20, 0.24, signature["apex"]),
+                (2.72, 0.24, signature["accent"]),
+                (3.02, 0.34, signature["final"]),
+                (3.40, 0.42, signature["terminal"]),
             ]
         return [
             (0.00, 0.75, signature["anchor"]),
             (1.00, 0.50, signature["pivot"]),
-            (2.00, 0.50, signature["lift"]),
-            (3.00, 0.50, signature["accent"]),
-            (3.50, 0.40, signature["payoff"]),
+            (2.00, 0.42, signature["lift"]),
+            (2.75, 0.25, signature["accent"]),
+            (3.10, 0.42, signature["final"]),
         ]
 
     if phase >= 2:
         return [
-            (0.00, 0.50, signature["answer"]),
-            (1.00, 0.50, signature["anchor"]),
-            (1.75, 0.25, signature["pivot"]),
-            (2.00, 0.50, signature["lift"]),
-            (2.75, 0.25, signature["apex"]),
-            (3.00, 0.50, signature["payoff"]),
-            (3.50, 0.40, signature["accent"]),
+            (0.00, 0.42, signature["answer"]),
+            (0.80, 0.42, signature["anchor"]),
+            (1.60, 0.24, signature["pivot"]),
+            (2.00, 0.42, signature["lift"]),
+            (2.60, 0.24, signature["apex"]),
+            (2.95, 0.30, signature["payoff"]),
+            (3.30, 0.44, signature["accent"]),
         ]
     return [
         (0.00, 0.50, signature["answer"]),
         (1.00, 0.50, signature["anchor"]),
-        (2.00, 0.50, signature["pivot"]),
-        (3.00, 0.50, signature["lift"]),
-        (3.50, 0.40, signature["payoff"]),
+        (1.80, 0.25, signature["pivot"]),
+        (2.20, 0.42, signature["lift"]),
+        (3.00, 0.44, signature["payoff"]),
     ]
+
 
 
 def build_breakdown_recall_blueprint(root: str, chords):
     signature = build_signature_hook_cell(root, chords[0], chords[1])
     return {
         0: [
-            (0.00, 1.75, signature["anchor"] - 12),
-            (2.75, 0.85, signature["support"] - 12),
+            (0.00, 1.60, signature["anchor"] - 12),
+            (2.60, 0.90, signature["support"] - 12),
         ],
         1: [
-            (0.50, 1.10, signature["answer"] - 12),
-            (2.75, 1.25, signature["lift"] - 12),
+            (0.50, 1.00, signature["answer"] - 12),
+            (2.50, 1.10, signature["lift"] - 12),
         ],
         2: [
-            (0.00, 0.90, signature["support"] - 12),
-            (2.00, 0.85, signature["pivot"] - 12),
-            (3.25, 0.45, signature["lift"] - 12),
+            (0.00, 0.85, signature["support"] - 12),
+            (1.90, 0.85, signature["pivot"] - 12),
+            (3.15, 0.55, signature["lift"] - 12),
         ],
         3: [
-            (0.00, 1.00, signature["answer"] - 12),
-            (2.50, 1.60, signature["resolve"] - 12),
+            (0.00, 0.90, signature["answer"] - 12),
+            (2.10, 0.70, signature["payoff"] - 12),
+            (3.00, 0.80, signature["resolve"] - 12),
         ],
     }
 
@@ -1446,6 +1463,17 @@ def add_pad_strings_piano(tracks, start_tick_value: int, chord, section_kind: st
                 string_notes.append(chord["root"] + 24)
             add_events(tracks["strings"], start_tick_value, string_notes, tick(2), velocity=clamp(velocity - 18, 45, 112))
 
+        pluck_hits = [0.75, 2.75] if lift_level == 1 else [0.75, 1.75, 2.75]
+        pluck_notes = [chord["root"] + 12, chord["third"] + 12, chord["fifth"] + 12]
+        for idx, beat_pos in enumerate(pluck_hits):
+            add_events(
+                tracks["pluck"],
+                start_tick_value + tick(beat_pos),
+                pluck_notes[idx % len(pluck_notes)],
+                tick(0.18),
+                velocity=clamp(velocity - 20, 42, 96)
+            )
+
     elif section_kind == "outro":
         add_events(tracks["pad"], start_tick_value, low_chord, tick(4), velocity=clamp(velocity - 26, 34, 90))
         if local_bar < 4:
@@ -1462,6 +1490,7 @@ def add_breakdown_piano(tracks, start_tick_value: int, root: str, chord, global_
             tick(beat_len),
             velocity=clamp(velocity - 12, 44, 96)
         )
+
 
 
 def add_arp(tracks, start_tick_value: int, chord, section_kind: str, velocity: int, drop_variant: int = 1, local_bar: int = 0, total_bars: int = 32):
@@ -1489,35 +1518,49 @@ def add_arp(tracks, start_tick_value: int, chord, section_kind: str, velocity: i
                 tracks["arp"],
                 start_tick_value + tick(beat_pos),
                 clamp(arp_notes[i % len(arp_notes)], 88, 103),
-                tick(0.28),
+                tick(0.26),
                 velocity=clamp(velocity - 8, 34, 86)
             )
         return
 
     phase = drop_phase_for_bar(local_bar, total_bars)
+    bar_slot = local_bar % 4
 
     if drop_variant == 1:
-        if phase == 0:
-            positions = [0.50, 1.50, 2.50]
-        elif phase == 1:
+        if bar_slot == 0:
+            positions = [0.50, 2.50]
+            arp_notes = [chord["third"] + 24, chord["fifth"] + 24]
+        elif bar_slot == 1:
+            positions = [0.50, 1.50, 3.50]
+            arp_notes = [chord["root"] + 24, chord["third"] + 24, chord["fifth"] + 24]
+        elif bar_slot == 2:
             positions = [0.50, 1.50, 2.50, 3.50]
+            arp_notes = [chord["root"] + 24, chord["third"] + 24, chord["fifth"] + 24, chord["root"] + 24]
         else:
-            positions = [0.50, 1.50, 2.50, 3.50]
-        arp_notes = [chord["root"] + 24, chord["third"] + 24, chord["fifth"] + 24, chord["root"] + 24]
-        arp_velocity = clamp(velocity - 12, 32, 88)
-        note_len = 0.24
-    else:
-        if phase == 0:
-            positions = [0.50, 1.50, 2.50, 3.50]
-        elif phase == 1:
-            positions = [0.50, 1.50, 2.50, 3.50, 1.25]
-        elif phase == 2:
-            positions = [0.50, 1.50, 2.50, 3.50, 1.25, 3.25]
-        else:
-            positions = [0.50, 1.50, 2.50, 3.50, 0.75, 2.75]
-        arp_notes = [chord["root"] + 24, chord["third"] + 24, chord["fifth"] + 24, chord["root"] + 36]
-        arp_velocity = clamp(velocity - 10, 36, 94)
+            positions = [0.50, 2.50]
+            arp_notes = [chord["third"] + 24, chord["root"] + 24]
+        arp_velocity = clamp(velocity - 14, 30, 84)
         note_len = 0.22
+    else:
+        if bar_slot == 0:
+            positions = [0.50, 1.50, 2.50, 3.50]
+            arp_notes = [chord["root"] + 24, chord["third"] + 24, chord["fifth"] + 24, chord["root"] + 36]
+        elif bar_slot == 1:
+            positions = [0.50, 1.50, 2.50, 3.25, 3.50]
+            arp_notes = [chord["third"] + 24, chord["fifth"] + 24, chord["root"] + 36, chord["third"] + 24, chord["fifth"] + 24]
+        elif bar_slot == 2:
+            positions = [0.50, 1.25, 1.50, 2.50, 3.50]
+            arp_notes = [chord["root"] + 24, chord["third"] + 24, chord["fifth"] + 24, chord["root"] + 36, chord["third"] + 24]
+        else:
+            positions = [0.50, 2.50]
+            arp_notes = [chord["third"] + 24, chord["fifth"] + 24]
+
+        if phase >= 2 and bar_slot in (1, 2):
+            positions = positions + [0.25]
+            arp_notes = arp_notes + [chord["root"] + 24]
+
+        arp_velocity = clamp(velocity - 12, 34, 92)
+        note_len = 0.20
 
     for i, beat_pos in enumerate(positions):
         note = arp_notes[i % len(arp_notes)]
@@ -1763,19 +1806,19 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
 
         notes_path = td / "production_notes.txt"
         notes_path.write_text(
-            "Dream Trance MIDI Generator V3.2\n\n"
+            "Dream Trance MIDI Generator V3.3\n\n"
             + "BPM: " + str(bpm) + "\n"
             + "Key: " + key_root + " minor\n"
             + "Progression: " + progression + "\n"
             + "Arrangement: " + arrangement + "\n"
             + "Energy: " + energy + "\n"
             + "Vocalist: " + vocalist + "\n\n"
-            + "V3.0 Hook Authority Engine:\n"
-            + "- Stronger signature interval behaviour in the core hook\n"
-            + "- Harder bar-4 payoff with clearer phrase-end release\n"
-            + "- Tighter protection of hook identity during variation\n"
-            + "- More emotional breakdown recall and anticipation\n"
-            + "- Stronger Drop 2 opening bars with firmer arrival impact\n"
+            + "V3.3 Hook Dominance Engine:\n"
+            + "- Melody-first hook shaping with clearer 4-bar statement / answer / lift / payoff roles\n"
+            + "- Stronger bar-4 release authority and less repeated-note flattening\n"
+            + "- Clearer separation between lead ownership, arp motion, and pluck punctuation\n"
+            + "- More longing-led breakdown recall and stronger final-drop anticipation\n"
+            + "- Bigger Drop 2 reward profile with firmer opening authority\n"
             + "- Pre-drop impact gap retained before Drop 2\n\n"
             + "V3.0.1 Stability Fixes:\n"
             + "- Unique export ZIP file per request\n"
@@ -1804,12 +1847,13 @@ def generate(
     EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     request_id = uuid4().hex
-    out_zip = EXPORTS_DIR / ("dream_trance_midi_pack_v3_2_" + request_id + ".zip")
+    out_zip = EXPORTS_DIR / ("dream_trance_midi_pack_v3_3_" + request_id + ".zip")
 
     generate_pack(bpm, key_root, progression, arrangement, energy, vocalist, out_zip)
 
     return FileResponse(
         path=out_zip,
-        filename="dream_trance_midi_pack_v3_2.zip",
-        media_type="application/zip"
+        filename="dream_trance_midi_pack_v3_3.zip",
+        media_type="application/zip",
+        background=BackgroundTask(lambda: out_zip.unlink(missing_ok=True))
     )
