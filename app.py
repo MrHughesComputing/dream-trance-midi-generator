@@ -14,7 +14,7 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 EXPORTS_DIR = BASE_DIR / "exports"
 
-app = FastAPI(title="Dream Trance MIDI Generator V3.5")
+app = FastAPI(title="Dream Trance MIDI Generator V3.6")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
@@ -100,7 +100,7 @@ HTML = """
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dream Trance MIDI Generator V3.5</title>
+  <title>Dream Trance MIDI Generator V3.6</title>
   <style>
     :root {
       --bg: #061121;
@@ -453,10 +453,10 @@ HTML = """
   <div class="shell">
     <section class="hero">
       <div class="hero-card">
-        <div class="eyebrow">Dream Trance MIDI Generator • V3.5 Hook Dominance Engine</div>
-        <h1>Push the generator toward melody-first trance writing with a more memorable 4-bar hook, stronger bar-4 payoff authority, cleaner layer separation, and a more rewarding Drop 2 escalation.</h1>
+        <div class="eyebrow">Dream Trance MIDI Generator • V3.6 Motif Evolution Engine</div>
+        <h1>Push the generator toward motif-driven trance writing with evolving hook families, phrase-role-aware drops, breakdown memory, stronger countermelody, and a more decisive final Drop 2 climax.</h1>
         <p class="sub">
-          V3.5 preserves the V3.4 stability and structure while enforcing hero-note dominance, stronger 4-bar hook identity, smarter breakdown memory writing, and a more decisive Drop 2 reward.
+          V3.6 preserves the V3.5 stability and hook authority while adding motif-family writing, phrase-role-aware drops, emotional breakdown memory, stronger countermelody answers, and a true final Drop 2 climax.
         </p>
         <div class="pill">Exports aligned full-length stems + combined arrangement MIDI</div>
       </div>
@@ -529,12 +529,12 @@ HTML = """
         <div class="tip">
           <h3>What changed in V3.5</h3>
           <ul>
-            <li>Lead generation now writes around a track identity blueprint with one enforced hero note per 4-bar hook cycle.</li>
+            <li>Lead generation now writes around a track identity blueprint plus a motif family with one enforced hero note per 4-bar cycle.</li>
             <li>Bar-4 payoff phrases now lock to a dominant hero note instead of letting all notes compete equally.</li>
             <li>Drop 2 now escalates more decisively in register, support, and final payoff authority.</li>
             <li>Rolling bass and countermelody now leave more space underneath lead payoff moments.</li>
-            <li>Breakdown recall now behaves more like memory and anticipation instead of replaying the drop literally.</li>
-            <li>The vocal melody stem is now shaped more like a simplified topline candidate.</li>
+            <li>Breakdown recall now behaves like motif memory and anticipation instead of replaying the drop literally.</li>
+            <li>The vocal melody stem is now more motif-aware and shaped like a simplified topline candidate.</li>
           </ul>
         </div>
 
@@ -1033,6 +1033,347 @@ def enforce_hero_note(phrase_events, hero_note: int, hero_start_min_beat: float 
     return working
 
 
+
+def invert_fragment(notes, pivot):
+    inverted = []
+    for n in notes:
+        interval = n - pivot
+        inverted.append(clamp(pivot - interval, 60, 102))
+    return inverted
+
+
+def rotate_fragment(notes, steps: int = 1):
+    if not notes:
+        return []
+    steps = steps % len(notes)
+    return notes[steps:] + notes[:steps]
+
+
+def build_motif_rhythm_family():
+    return {
+        "statement": [
+            (0, 0.00, 0.72, "strong"),
+            (0, 1.00, 0.42, "passing"),
+            (0, 2.00, 0.48, "support"),
+            (0, 3.00, 0.68, "strong"),
+            (1, 0.00, 0.50, "support"),
+            (1, 1.00, 0.34, "passing"),
+            (1, 2.00, 0.42, "support"),
+            (1, 3.00, 0.66, "strong"),
+            (2, 0.00, 0.40, "support"),
+            (2, 0.75, 0.24, "passing"),
+            (2, 1.50, 0.34, "support"),
+            (2, 2.25, 0.32, "strong"),
+            (2, 3.00, 0.64, "strong"),
+            (3, 0.00, 0.44, "support"),
+            (3, 0.90, 0.34, "support"),
+            (3, 1.75, 0.30, "strong"),
+            (3, 2.60, 0.22, "passing"),
+            (3, 3.05, 0.88, "hero"),
+        ],
+        "variation": [
+            (0, 0.00, 0.62, "strong"),
+            (0, 0.75, 0.26, "passing"),
+            (0, 1.50, 0.32, "support"),
+            (0, 2.25, 0.28, "passing"),
+            (0, 3.00, 0.66, "strong"),
+            (1, 0.00, 0.44, "support"),
+            (1, 1.00, 0.26, "passing"),
+            (1, 1.75, 0.30, "support"),
+            (1, 2.40, 0.22, "passing"),
+            (1, 3.00, 0.68, "strong"),
+            (2, 0.00, 0.38, "support"),
+            (2, 0.75, 0.24, "passing"),
+            (2, 1.35, 0.28, "support"),
+            (2, 2.00, 0.30, "strong"),
+            (2, 2.70, 0.24, "passing"),
+            (2, 3.00, 0.62, "strong"),
+            (3, 0.00, 0.38, "support"),
+            (3, 0.82, 0.28, "support"),
+            (3, 1.56, 0.28, "strong"),
+            (3, 2.28, 0.18, "passing"),
+            (3, 2.64, 0.20, "strong"),
+            (3, 3.10, 0.90, "hero"),
+        ],
+        "lift": [
+            (0, 0.00, 0.56, "strong"),
+            (0, 0.75, 0.24, "passing"),
+            (0, 1.50, 0.28, "support"),
+            (0, 2.25, 0.24, "passing"),
+            (0, 3.00, 0.64, "strong"),
+            (1, 0.00, 0.40, "support"),
+            (1, 0.75, 0.20, "passing"),
+            (1, 1.35, 0.24, "support"),
+            (1, 2.00, 0.24, "passing"),
+            (1, 2.55, 0.24, "strong"),
+            (1, 3.00, 0.56, "strong"),
+            (2, 0.00, 0.34, "support"),
+            (2, 0.62, 0.18, "passing"),
+            (2, 1.10, 0.20, "support"),
+            (2, 1.58, 0.18, "passing"),
+            (2, 2.02, 0.22, "strong"),
+            (2, 2.46, 0.20, "passing"),
+            (2, 2.82, 0.24, "strong"),
+            (2, 3.18, 0.38, "strong"),
+            (3, 0.00, 0.34, "support"),
+            (3, 0.68, 0.18, "passing"),
+            (3, 1.18, 0.20, "support"),
+            (3, 1.82, 0.20, "strong"),
+            (3, 2.34, 0.18, "passing"),
+            (3, 2.72, 0.22, "strong"),
+            (3, 3.18, 0.98, "hero"),
+        ],
+        "climax": [
+            (0, 0.00, 0.58, "strong"),
+            (0, 0.62, 0.22, "passing"),
+            (0, 1.10, 0.24, "support"),
+            (0, 1.58, 0.20, "passing"),
+            (0, 2.00, 0.24, "strong"),
+            (0, 2.48, 0.20, "passing"),
+            (0, 2.84, 0.26, "strong"),
+            (0, 3.20, 0.56, "strong"),
+            (1, 0.00, 0.38, "support"),
+            (1, 0.58, 0.18, "passing"),
+            (1, 1.02, 0.20, "support"),
+            (1, 1.46, 0.18, "passing"),
+            (1, 1.88, 0.22, "strong"),
+            (1, 2.32, 0.20, "passing"),
+            (1, 2.72, 0.24, "strong"),
+            (1, 3.10, 0.56, "strong"),
+            (2, 0.00, 0.32, "support"),
+            (2, 0.52, 0.16, "passing"),
+            (2, 0.92, 0.18, "support"),
+            (2, 1.30, 0.18, "passing"),
+            (2, 1.72, 0.22, "strong"),
+            (2, 2.18, 0.20, "passing"),
+            (2, 2.56, 0.24, "strong"),
+            (2, 2.94, 0.22, "strong"),
+            (2, 3.22, 0.50, "strong"),
+            (3, 0.00, 0.34, "support"),
+            (3, 0.58, 0.18, "passing"),
+            (3, 1.02, 0.20, "support"),
+            (3, 1.46, 0.18, "passing"),
+            (3, 1.92, 0.22, "strong"),
+            (3, 2.34, 0.18, "passing"),
+            (3, 2.72, 0.22, "strong"),
+            (3, 3.10, 1.12, "hero"),
+        ],
+    }
+
+
+def derive_statement_from_cell(cell, identity_blueprint):
+    sig = identity_blueprint["hook_signature"]
+    return [
+        cell[0], cell[1], cell[2], sig["dominant"],
+        cell[0], cell[1], sig["pivot"], sig["lift"],
+        cell[1], cell[0], sig["pivot"], sig["lift"], sig["apex"],
+        sig["answer"], sig["anchor"], sig["pivot"], sig["lift"], sig["payoff"],
+    ]
+
+
+def derive_variation_from_cell(cell, identity_blueprint):
+    sig = identity_blueprint["hook_signature"]
+    rotated = rotate_fragment(cell, 1)
+    return [
+        rotated[0], rotated[1], rotated[2], sig["dominant"],
+        rotated[0], sig["passing"], sig["pivot"], sig["tension"], sig["lift"],
+        cell[1], cell[0], sig["pivot"], sig["lift"], sig["apex"], sig["leap"],
+        sig["answer"], sig["anchor"], sig["pivot"], sig["tension"], sig["lift"], sig["payoff"],
+    ]
+
+
+def derive_lift_from_cell(cell, identity_blueprint):
+    sig = identity_blueprint["hook_signature"]
+    expanded = [cell[0], cell[1], cell[2], sig["pivot"], sig["lift"], sig["apex"]]
+    return [
+        expanded[0], expanded[1], expanded[2], sig["dominant"],
+        expanded[1], sig["passing"], sig["pivot"], sig["tension"], sig["lift"],
+        cell[1], sig["anchor"], sig["pivot"], sig["lift"], sig["apex"], sig["leap"],
+        sig["answer"], sig["pivot"], sig["tension"], sig["lift"], sig["apex"], sig["final"],
+    ]
+
+
+def derive_climax_from_cell(cell, identity_blueprint):
+    sig = identity_blueprint["hook_signature"]
+    hero = identity_blueprint["drop2_apex_note"]
+    return [
+        cell[0], cell[1], sig["pivot"], sig["lift"], sig["apex"], sig["leap"],
+        cell[1], sig["pivot"], sig["tension"], sig["lift"], sig["apex"], sig["leap"],
+        sig["anchor"], sig["pivot"], sig["lift"], sig["apex"], sig["final"], hero - 1,
+        sig["answer"], sig["anchor"], sig["pivot"], sig["tension"], sig["lift"], sig["apex"], sig["final"], hero,
+    ]
+
+
+def build_motif_family(identity_blueprint, root: str, chords):
+    sig = identity_blueprint["hook_signature"]
+    base_cell = [
+        clamp(sig["anchor"], 72, 92),
+        clamp(sig["support"], 72, 92),
+        clamp(sig["answer"], 72, 92),
+    ]
+    family = {
+        "cell": base_cell,
+        "statement": derive_statement_from_cell(base_cell, identity_blueprint),
+        "variation": derive_variation_from_cell(base_cell, identity_blueprint),
+        "lift": derive_lift_from_cell(base_cell, identity_blueprint),
+        "climax": derive_climax_from_cell(base_cell, identity_blueprint),
+        "breakdown_hint": [
+            clamp(base_cell[0] - 12, 60, 84),
+            clamp(base_cell[2] - 12, 60, 84),
+            clamp(sig["pivot"] - 12, 60, 84),
+            clamp(sig["payoff"] - 12, 60, 84),
+        ],
+    }
+    family["inversion"] = invert_fragment(base_cell, base_cell[0])
+    return family
+
+
+def plan_drop_phrase_roles(section_name: str, bars: int):
+    cycles = max(1, (bars + 3) // 4)
+    if "drop 2" in section_name.lower():
+        seed = ["variation", "lift", "statement", "lift", "variation", "lift", "statement", "climax"]
+    else:
+        seed = ["statement", "variation", "statement", "lift", "variation", "lift", "statement", "climax"]
+    roles = []
+    for i in range(cycles):
+        if i < len(seed):
+            roles.append(seed[i])
+        else:
+            roles.append(seed[-2] if i < cycles - 1 else seed[-1])
+    if cycles == 1:
+        roles = ["climax" if "drop 2" in section_name.lower() else "statement"]
+    elif cycles == 2 and "drop 2" in section_name.lower():
+        roles[-1] = "climax"
+    elif cycles >= 2:
+        roles[-1] = "climax" if "drop 2" in section_name.lower() else max(["statement","variation","lift"], key=lambda r: {"statement":0,"variation":1,"lift":2}[roles[-1]])
+    return roles
+
+
+def plan_final_climax_window(section_name: str, local_bar: int, total_bars: int):
+    if "drop 2" not in section_name.lower():
+        return {"in_final_8": False, "in_final_4": False, "is_peak_phrase": False}
+    return {
+        "in_final_8": local_bar >= max(0, total_bars - 8),
+        "in_final_4": local_bar >= max(0, total_bars - 4),
+        "is_peak_phrase": local_bar >= max(0, total_bars - 4),
+    }
+
+
+def evolve_hero_strategy(phrase_role: str, identity_blueprint, drop_variant: int, phase: int):
+    peak = identity_blueprint["lead_register_peak"]
+    base = identity_blueprint["hero_note"]
+    if phrase_role == "statement":
+        return {"hero_note": clamp(base, 78, peak), "hero_start": 3.00, "hold_beats": 0.92}
+    if phrase_role == "variation":
+        return {"hero_note": clamp(base + (1 if drop_variant == 2 else 0), 79, peak), "hero_start": 3.08, "hold_beats": 0.94}
+    if phrase_role == "lift":
+        return {"hero_note": clamp(base + 1 + phase, 80, peak), "hero_start": 3.18, "hold_beats": 1.00}
+    return {"hero_note": clamp(max(identity_blueprint["drop2_apex_note"], base + 2), 82, 102), "hero_start": 3.10, "hold_beats": 1.12}
+
+
+def compose_motif_phrase(identity_blueprint, motif_family, phrase_role: str, drop_variant: int, phase: int, cycle_index: int):
+    rhythm_family = build_motif_rhythm_family()
+    rhythm = rhythm_family.get(phrase_role, rhythm_family["statement"])
+    note_pool = motif_family.get(phrase_role, motif_family["statement"])[:]
+    if phrase_role == "variation" and cycle_index % 2 == 1:
+        note_pool = rotate_fragment(note_pool, 1)
+    elif phrase_role == "lift" and cycle_index % 2 == 1:
+        note_pool = rotate_fragment(note_pool, 2)
+    hero_strategy = evolve_hero_strategy(phrase_role, identity_blueprint, drop_variant, phase)
+    contour_bonus = {"statement": 0, "variation": 1, "lift": 2, "climax": 3}[phrase_role]
+    register_shift = 0
+    if drop_variant == 2:
+        register_shift += 1
+    if phase >= 2:
+        register_shift += 1
+    if phrase_role == "climax":
+        register_shift += 1
+
+    phrase = []
+    prev_note = None
+    for idx, (bar_offset, beat_pos, beat_len, role) in enumerate(rhythm):
+        raw = note_pool[idx % len(note_pool)]
+        if role == "hero":
+            raw = hero_strategy["hero_note"]
+            beat_pos = hero_strategy["hero_start"]
+            beat_len = hero_strategy["hold_beats"]
+        elif role == "strong" and phrase_role in ("lift", "climax") and beat_pos >= 2.5:
+            raw = apply_register_shift(raw, register_shift + contour_bonus, 74, 102)
+        else:
+            raw = apply_register_shift(raw, register_shift + min(contour_bonus, 2), 72, identity_blueprint["lead_register_peak"])
+
+        phrase.append({
+            "bar_offset": bar_offset,
+            "beat_pos": beat_pos,
+            "beat_len": beat_len,
+            "raw_note": raw,
+            "role": role,
+            "allow_tension": phrase_role in ("lift", "climax") and role in ("passing", "strong") and beat_pos >= 2.0,
+            "support_octave": role in ("hero",) or (phrase_role == "climax" and role == "strong" and beat_pos >= 2.8),
+            "prefer_direction": 1 if prev_note is None or raw >= prev_note else -1,
+            "phrase_role": phrase_role,
+        })
+        prev_note = raw
+
+    phrase = enforce_hero_note(phrase, hero_strategy["hero_note"], hero_start_min_beat=hero_strategy["hero_start"])
+    return phrase
+
+
+def build_countermelody_response(motif_family, phrase_role: str, chord, local_bar: int, drop_variant: int, phase: int):
+    cell = motif_family["cell"]
+    root_line = clamp(chord["root"], 60, 81)
+    third_line = clamp(chord["third"], 60, 83)
+    fifth_line = clamp(chord["fifth"], 60, 84)
+    echo_a = clamp(cell[1] - 12, 60, 81)
+    echo_b = clamp(cell[2] - 12, 60, 82)
+
+    if local_bar % 4 == 0:
+        if phrase_role == "statement":
+            return [(2.75, 0.42, echo_a, "support"), (3.35, 0.42, third_line, "support")]
+        if phrase_role == "variation":
+            return [(2.50, 0.28, echo_a, "passing"), (2.92, 0.34, echo_b, "support"), (3.45, 0.34, fifth_line, "support")]
+        if phrase_role == "lift":
+            return [(2.42, 0.24, echo_a, "passing"), (2.78, 0.26, echo_b, "support"), (3.15, 0.30, fifth_line, "strong"), (3.58, 0.28, third_line, "support")]
+        return [(2.34, 0.22, echo_a, "passing"), (2.66, 0.22, echo_b, "support"), (2.98, 0.26, fifth_line, "strong"), (3.36, 0.56, root_line, "hero")]
+
+    if local_bar % 4 == 1:
+        if phrase_role in ("lift", "climax") and drop_variant == 2:
+            return [(2.88, 0.24, third_line, "support"), (3.26, 0.30, fifth_line, "strong"), (3.70, 0.18, root_line, "support")]
+        return [(2.92, 0.28, third_line, "support"), (3.44, 0.32, fifth_line, "support")]
+
+    if local_bar % 4 == 3 and phrase_role == "climax":
+        return [(2.36, 0.22, echo_b, "support"), (2.72, 0.22, fifth_line, "strong")]
+
+    return []
+
+
+def build_breakdown_memory_map_v2(identity_blueprint, motif_family, root: str, chords):
+    hint = motif_family["breakdown_hint"]
+    sig = identity_blueprint["hook_signature"]
+    return {
+        0: {
+            "lead": [(0.00, 1.40, hint[0], "strong"), (2.85, 0.70, hint[1], "support")],
+            "piano": [(0.00, 1.00, hint[0], "support"), (2.00, 1.10, hint[2], "support")],
+            "vocal": [(0.50, 0.85, hint[1], "support"), (2.60, 0.90, hint[2], "strong")],
+        },
+        1: {
+            "lead": [(0.75, 0.88, hint[1], "support"), (2.65, 1.00, hint[2], "strong")],
+            "piano": [(0.50, 1.00, hint[0], "support"), (2.50, 1.00, hint[3], "support")],
+            "vocal": [(0.80, 0.72, hint[1], "support"), (2.70, 0.95, hint[2], "strong")],
+        },
+        2: {
+            "lead": [(0.00, 0.62, hint[1], "support"), (2.10, 0.60, hint[2], "support"), (3.35, 0.26, hint[3], "passing")],
+            "piano": [(0.00, 0.95, hint[0], "support"), (2.00, 1.00, hint[1], "support")],
+            "vocal": [(0.10, 0.58, hint[1], "support"), (2.25, 0.54, hint[3], "passing")],
+        },
+        3: {
+            "lead": [(0.00, 0.82, hint[1], "support"), (2.35, 0.56, hint[3], "strong"), (3.00, 1.02, clamp(sig["resolve"] - 12, 60, 84), "hero")],
+            "piano": [(0.00, 1.00, hint[1], "support"), (2.50, 1.15, hint[3], "strong")],
+            "vocal": [(0.20, 0.70, hint[1], "support"), (2.82, 1.00, clamp(sig["resolve"] - 12, 60, 84), "hero")],
+        },
+    }
+
+
 def compose_hook_cycle(identity_blueprint, drop_variant: int, phase: int, cycle_index: int):
     signature = identity_blueprint["hook_signature"]
     contour_type = identity_blueprint["track_contour_type"]
@@ -1190,39 +1531,38 @@ def build_breakdown_emotion_map(identity_blueprint, root: str, chords):
     }
 
 
+
 def generate_topline_candidate_from_identity(identity_blueprint, root: str, chord, vocal_min: int, vocal_max: int, global_bar: int, section_kind: str):
-    signature = identity_blueprint["hook_signature"]
+    motif_family = identity_blueprint.get("motif_family") or build_motif_family(identity_blueprint, root, [chord, chord])
     pool = chord_tones_in_range(chord, vocal_min, vocal_max)
     scale_pool = scale_notes_in_range(root, vocal_min, vocal_max)
-
-    base_notes = {
-        "anchor": nearest_note_from_pool(clamp(signature["anchor"] - 12, vocal_min, vocal_max), pool),
-        "answer": nearest_note_from_pool(clamp(signature["answer"] - 12, vocal_min, vocal_max), pool),
-        "support": nearest_note_from_pool(clamp(signature["support"] - 12, vocal_min, vocal_max), pool),
-        "lift": nearest_note_from_pool(clamp(signature["lift"] - 12, vocal_min, vocal_max), pool),
-        "resolve": nearest_note_from_pool(clamp(signature["resolve"] - 12, vocal_min, vocal_max), pool),
-        "tension": nearest_note_from_pool(clamp(signature["tension"] - 12, vocal_min, vocal_max), scale_pool if scale_pool else pool),
-    }
-
     slot = global_bar % 4
 
     if section_kind == "breakdown":
-        if slot == 0:
-            return [(0.00, 0.95, base_notes["anchor"], "strong"), (2.20, 1.10, base_notes["support"], "support")]
-        if slot == 1:
-            return [(0.75, 0.80, base_notes["answer"], "support"), (2.55, 1.05, base_notes["lift"], "strong")]
-        if slot == 2:
-            return [(0.00, 0.65, base_notes["support"], "support"), (2.25, 0.55, base_notes["tension"], "passing")]
-        return [(0.00, 0.90, base_notes["answer"], "support"), (2.80, 1.15, base_notes["resolve"], "hero")]
+        memory_map = build_breakdown_memory_map_v2(identity_blueprint, motif_family, root, [chord, chord])
+        phrase = memory_map[slot]["vocal"]
+        out = []
+        for beat_pos, beat_len, raw_note, role in phrase:
+            note = nearest_note_from_pool(clamp(raw_note, vocal_min, vocal_max), pool if role != "passing" else scale_pool)
+            out.append((beat_pos, beat_len, note, role))
+        return out
 
-    if slot == 0:
-        return [(0.00, 0.72, base_notes["anchor"], "strong"), (1.50, 0.52, base_notes["support"], "support"), (3.00, 0.92, base_notes["answer"], "support")]
-    if slot == 1:
-        return [(0.50, 0.66, base_notes["answer"], "support"), (2.10, 0.40, base_notes["tension"], "passing"), (2.75, 0.90, base_notes["lift"], "strong")]
-    if slot == 2:
-        return [(0.00, 0.58, base_notes["support"], "support"), (1.60, 0.46, base_notes["anchor"], "support"), (3.00, 0.88, base_notes["lift"], "strong")]
-    return [(0.00, 0.70, base_notes["answer"], "support"), (2.75, 1.15, base_notes["resolve"], "hero")]
+    phrase_role = ["statement", "variation", "lift", "climax"][slot] if slot < 4 else "statement"
+    source = motif_family["statement"] if phrase_role == "statement" else motif_family[phrase_role]
+    reduced = [source[0], source[min(2, len(source)-1)], source[min(4, len(source)-1)], source[-1]]
 
+    beat_templates = {
+        "statement": [(0.00, 0.72, "strong"), (1.60, 0.50, "support"), (3.00, 0.92, "support")],
+        "variation": [(0.50, 0.60, "support"), (2.10, 0.42, "passing"), (2.82, 0.88, "strong")],
+        "lift": [(0.00, 0.56, "support"), (1.52, 0.42, "support"), (3.02, 0.92, "strong")],
+        "climax": [(0.00, 0.66, "support"), (2.58, 0.32, "strong"), (3.06, 1.12, "hero")],
+    }
+    out = []
+    for idx, (beat_pos, beat_len, role) in enumerate(beat_templates[phrase_role]):
+        raw_note = reduced[idx % len(reduced)] - 12
+        note = nearest_note_from_pool(clamp(raw_note, vocal_min, vocal_max), pool if role != "passing" else scale_pool)
+        out.append((beat_pos, beat_len, note, role))
+    return out
 
 def derive_bass_energy_mask_from_lead(lead_phrase_events, absolute_start_bar: int, bars_to_write: int):
     mask = {}
@@ -1550,16 +1890,20 @@ def adapt_note_to_bar(note: int, root: str, chord, section_kind: str):
 
 
 
-def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int, drop_variant: int, identity_blueprint):
+
+def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int, drop_variant: int, identity_blueprint, section_name: str = "Drop"):
     """
-    V3.5 lead rules:
-    - compose 4-bar hook cycles as authored musical units
-    - enforce one hero note per cycle
-    - enforce a deliberate signature leap
-    - give Drop 2 a higher, more complete payoff profile
+    V3.6 lead rules:
+    - write drop phrases from a motif family rather than one repeating phrase template
+    - assign phrase roles across 4-bar cycles
+    - preserve hero-note enforcement while evolving its setup by phrase role
+    - reserve final Drop 2 cycles for a real climax form
     """
     events = []
     cycles = max(1, (bars_to_write + 3) // 4)
+    motif_family = build_motif_family(identity_blueprint, root, chords)
+    identity_blueprint["motif_family"] = motif_family
+    phrase_roles = plan_drop_phrase_roles(section_name, bars_to_write)
 
     for cycle_index in range(cycles):
         cycle_start_local = cycle_index * 4
@@ -1567,7 +1911,15 @@ def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_t
             break
 
         phase = drop_phase_for_bar(min(cycle_start_local, bars_to_write - 1), bars_to_write)
-        phrase = compose_hook_cycle(identity_blueprint, drop_variant, phase, cycle_index)
+        phrase_role = phrase_roles[min(cycle_index, len(phrase_roles) - 1)]
+        if "drop 2" in section_name.lower():
+            window = plan_final_climax_window(section_name, cycle_start_local, bars_to_write)
+            if window["in_final_8"] and phrase_role == "statement":
+                phrase_role = "lift"
+            if window["is_peak_phrase"]:
+                phrase_role = "climax"
+
+        phrase = compose_motif_phrase(identity_blueprint, motif_family, phrase_role, drop_variant, phase, cycle_index)
 
         previous_note = None
         for event in phrase:
@@ -1587,10 +1939,16 @@ def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_t
                 prefer_direction=event.get("prefer_direction", 1),
                 allow_tension=event.get("allow_tension", False),
             )
-            note = clamp(note, identity_blueprint["lead_register_base"], identity_blueprint["lead_register_peak"])
+            window = plan_final_climax_window(section_name, local_bar, bars_to_write)
+            peak_high = 102 if window["in_final_8"] else identity_blueprint["lead_register_peak"]
+            note = clamp(note, identity_blueprint["lead_register_base"], peak_high)
 
             role = event["role"]
-            note_velocity = clamp(velocity + phrase_role_velocity_offset(role), 1, 124)
+            role_velocity = phrase_role_velocity_offset(role)
+            phrase_boost = {"statement": 0, "variation": 2, "lift": 5, "climax": 9}[event.get("phrase_role", phrase_role)]
+            if window["in_final_4"]:
+                phrase_boost += 4
+            note_velocity = clamp(velocity + role_velocity + phrase_boost, 1, 124)
             add_length = tick(event["beat_len"] * phrase_role_length_multiplier(role))
             start_tick_value = bar_start + tick(event["beat_pos"])
 
@@ -1655,8 +2013,11 @@ def generate_build_lead_events(root: str, chords, absolute_start_bar: int, bars_
     return events
 
 
+
 def generate_breakdown_recall_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int, identity_blueprint):
-    blueprint = build_breakdown_emotion_map(identity_blueprint, root, chords)
+    motif_family = identity_blueprint.get("motif_family") or build_motif_family(identity_blueprint, root, chords)
+    identity_blueprint["motif_family"] = motif_family
+    memory_map = build_breakdown_memory_map_v2(identity_blueprint, motif_family, root, chords)
     events = []
 
     for i in range(bars_to_write):
@@ -1664,15 +2025,15 @@ def generate_breakdown_recall_events(root: str, chords, absolute_start_bar: int,
         chord = chords[(absolute_start_bar + i) % len(chords)]
         bar_start = bar_tick(absolute_start_bar + i)
 
-        phrase = blueprint[local_slot][:]
+        phrase = memory_map[local_slot]["lead"][:]
         if local_slot == 3 and i >= max(0, bars_to_write - 8):
-            phrase.append((3.60, 0.22, clamp(identity_blueprint["hook_signature"]["pivot"] - 12, 60, 84), "passing"))
+            phrase.append((3.56, 0.22, clamp(motif_family["breakdown_hint"][2], 60, 84), "passing"))
 
         for beat_pos, beat_len, raw_note, role in phrase:
             note = adapt_note_to_bar(raw_note, root, chord, "breakdown")
             note = clamp(note, 60, 84)
             vel = clamp(velocity - 18 + phrase_role_velocity_offset(role), 36, 102)
-            length_mult = 1.04 if role in ("strong", "hero") else phrase_role_length_multiplier(role)
+            length_mult = 1.08 if role in ("strong", "hero") else phrase_role_length_multiplier(role)
             events.append((bar_start + tick(beat_pos), note, tick(beat_len * length_mult), vel))
 
     return events
@@ -1814,7 +2175,7 @@ def add_hats(track_events, start_tick_value: int, section_kind: str, velocity: i
 
 
 
-def add_pad_strings_piano(tracks, start_tick_value: int, chord, section_kind: str, velocity: int, local_bar: int, lift_level: int = 1, tension_level: float = 0.5):
+def add_pad_strings_piano(tracks, start_tick_value: int, chord, section_kind: str, velocity: int, local_bar: int, lift_level: int = 1, tension_level: float = 0.5, section_name: str = ""):
     low_chord = [chord["root"] - 12, chord["third"] - 12, chord["fifth"] - 12]
     full_chord = [chord["root"], chord["third"], chord["fifth"]]
     bright_chord = [chord["root"], chord["third"], chord["fifth"], chord["root"] + 12]
@@ -1902,7 +2263,7 @@ def add_breakdown_piano(tracks, start_tick_value: int, root: str, chord, global_
 
 
 
-def add_arp(tracks, start_tick_value: int, chord, section_kind: str, velocity: int, drop_variant: int = 1, local_bar: int = 0, total_bars: int = 32):
+def add_arp(tracks, start_tick_value: int, chord, section_kind: str, velocity: int, drop_variant: int = 1, local_bar: int = 0, total_bars: int = 32, phrase_role: str = "statement", section_name: str = ""):
     if section_kind not in ("build", "drop", "breakdown"):
         return
 
@@ -1940,6 +2301,7 @@ def add_arp(tracks, start_tick_value: int, chord, section_kind: str, velocity: i
 
     phase = drop_phase_for_bar(local_bar, total_bars)
     bar_slot = local_bar % 4
+    climax_window = plan_final_climax_window(section_name, local_bar, total_bars)
 
     if drop_variant == 1:
         if bar_slot == 0:
@@ -1965,7 +2327,7 @@ def add_arp(tracks, start_tick_value: int, chord, section_kind: str, velocity: i
                 (0.50, chord["third"] + 24, 0.18),
                 (2.50, chord["root"] + 24, 0.22),
             ]
-        arp_velocity = clamp(velocity - 14, 30, 84)
+        arp_velocity = clamp(velocity - 14 + (3 if phrase_role in ("lift","climax") else 0), 30, 90)
     else:
         if bar_slot == 0:
             arp_phrase = [
@@ -2017,31 +2379,39 @@ def add_arp(tracks, start_tick_value: int, chord, section_kind: str, velocity: i
 
 
 
-def add_countermelody(tracks, start_tick_value: int, chord, local_bar: int, velocity: int, drop_variant: int = 1, total_bars: int = 32, hero_info=None):
-    bar_slot = local_bar % 4
+
+def add_countermelody(tracks, start_tick_value: int, chord, local_bar: int, velocity: int, drop_variant: int = 1, total_bars: int = 32, hero_info=None, motif_family=None, phrase_role: str = "statement", section_name: str = "Drop"):
     phase = drop_phase_for_bar(local_bar, total_bars)
 
-    if hero_info and hero_info.get("has_hero") and bar_slot == 3:
+    if hero_info and hero_info.get("has_hero") and local_bar % 4 == 3 and phrase_role != "climax":
         return
 
-    if bar_slot == 1:
-        phrase = [
-            (2.75, 0.50, clamp(chord["third"] - 12, 60, 79)),
-            (3.50, 0.40, clamp(chord["fifth"] - 12, 60, 79)),
-        ]
-    elif bar_slot == 3:
-        phrase = [
-            (2.50, 0.50, clamp(chord["root"], 60, 79)),
-            (3.25, 0.75, clamp(chord["third"], 60, 79)),
-        ]
-    else:
+    if motif_family is None:
+        motif_family = {
+            "cell": [clamp(chord["root"] + 12, 72, 84), clamp(chord["third"] + 12, 72, 84), clamp(chord["fifth"] + 12, 72, 84)]
+        }
+
+    phrase = build_countermelody_response(motif_family, phrase_role, chord, local_bar, drop_variant, phase)
+    if not phrase:
         return
 
-    if drop_variant == 2 and phase >= 2 and bar_slot == 1:
-        phrase = phrase + [(3.82, 0.12, clamp(chord["root"], 62, 81))]
-
-    for beat_pos, beat_len, note in phrase:
-        add_events(tracks["countermelody"], start_tick_value + tick(beat_pos), note, tick(beat_len), velocity=velocity)
+    climax_window = plan_final_climax_window(section_name, local_bar, total_bars)
+    for beat_pos, beat_len, note, role in phrase:
+        local_velocity = velocity + phrase_role_velocity_offset(role)
+        if phrase_role in ("lift", "climax"):
+            local_velocity += 4
+        if climax_window["in_final_8"]:
+            local_velocity += 4
+        if climax_window["in_final_4"]:
+            local_velocity += 3
+            beat_len *= 1.08
+        add_events(
+            tracks["countermelody"],
+            start_tick_value + tick(beat_pos),
+            clamp(note, 60, 84),
+            tick(beat_len * phrase_role_length_multiplier(role)),
+            velocity=clamp(local_velocity, 42, 112)
+        )
 
 def add_predrop_impact_gap(tracks, bar_index: int):
     gap_start = bar_tick(bar_index) + tick(3.75)
@@ -2074,6 +2444,8 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
     energy_factor = ENERGY_LEVELS[energy]
     vocal_min, vocal_max = VOCAL_RANGES[vocalist]
     identity_blueprint = build_track_identity_blueprint(key_root, chords, arrangement, energy)
+    motif_family = build_motif_family(identity_blueprint, key_root, chords)
+    identity_blueprint["motif_family"] = motif_family
 
     tracks = {stem: [] for stem in STEMS}
     markers = []
@@ -2102,6 +2474,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
         build_variant = 2 if is_build_2 else 1
 
         if sec_kind == "drop":
+            phrase_roles = plan_drop_phrase_roles(sec["name"], sec["bars"])
             lead_events = generate_drop_lead_events(
                 key_root,
                 chords,
@@ -2110,11 +2483,13 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                 clamp(sec_profile["velocity"] + (6 if is_drop_2 else 0), 1, 124),
                 drop_variant,
                 identity_blueprint,
+                section_name=sec["name"],
             )
             add_phrase_events_to_track(tracks["lead"], lead_events)
             drop_lead_maps[sec["start_bar"]] = derive_bass_energy_mask_from_lead(lead_events, sec["start_bar"], sec["bars"])
 
         elif sec_kind == "build":
+            phrase_roles = ["statement"] * max(1, (sec["bars"] + 3) // 4)
             build_lead_events = generate_build_lead_events(
                 key_root,
                 chords,
@@ -2127,6 +2502,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
             add_phrase_events_to_track(tracks["lead"], build_lead_events)
 
         elif sec_kind == "breakdown":
+            phrase_roles = ["statement"] * max(1, (sec["bars"] + 3) // 4)
             breakdown_events = generate_breakdown_recall_events(
                 key_root,
                 chords,
@@ -2139,6 +2515,8 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
 
         for local_bar in range(sec["bars"]):
             global_bar = sec["start_bar"] + local_bar
+            cycle_index = local_bar // 4
+            phrase_role = phrase_roles[min(cycle_index, len(phrase_roles) - 1)] if sec_kind in ("drop", "build", "breakdown") else "statement"
             chord = choose_chord(chords, global_bar)
             start = bar_tick(global_bar)
             is_last_bar_of_section = local_bar == sec["bars"] - 1
@@ -2159,6 +2537,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                 local_bar,
                 lift_level=lift_level,
                 tension_level=tension_level,
+                section_name=sec["name"],
             )
 
             if sec_kind == "breakdown":
@@ -2190,7 +2569,9 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                 clamp(local_velocity - 22, 46, 104),
                 drop_variant=drop_variant,
                 local_bar=local_bar,
-                total_bars=sec["bars"]
+                total_bars=sec["bars"],
+                phrase_role=phrase_role,
+                section_name=sec["name"]
             )
 
             if sec_kind in ("verse", "outro"):
@@ -2224,6 +2605,9 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                     drop_variant=drop_variant,
                     total_bars=sec["bars"],
                     hero_info=hero_info,
+                    motif_family=motif_family,
+                    phrase_role=phrase_role,
+                    section_name=sec["name"],
                 )
 
             if sec_kind in ("verse", "breakdown", "build"):
@@ -2266,14 +2650,14 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
 
         notes_path = td / "production_notes.txt"
         notes_path.write_text(
-            "Dream Trance MIDI Generator V3.5\n\n"
+            "Dream Trance MIDI Generator V3.6\n\n"
             + "BPM: " + str(bpm) + "\n"
             + "Key: " + key_root + " minor\n"
             + "Progression: " + progression + "\n"
             + "Arrangement: " + arrangement + "\n"
             + "Energy: " + energy + "\n"
             + "Vocalist: " + vocalist + "\n\n"
-            + "V3.5 Hook Dominance Engine:\n"
+            + "V3.6 Motif Evolution Engine:\n"
             + "- New track identity blueprint locks the track around one dominant hook concept\n"
             + "- One hero note is enforced inside every 4-bar drop cycle\n"
             + "- A deliberate signature leap is forced into the hook so phrases are more memorable\n"
@@ -2310,13 +2694,13 @@ def generate(
     EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     request_id = uuid4().hex
-    out_zip = EXPORTS_DIR / ("dream_trance_midi_pack_v3_5_" + request_id + ".zip")
+    out_zip = EXPORTS_DIR / ("dream_trance_midi_pack_v3_6_" + request_id + ".zip")
 
     generate_pack(bpm, key_root, progression, arrangement, energy, vocalist, out_zip)
 
     return FileResponse(
         path=out_zip,
-        filename="dream_trance_midi_pack_v3_5.zip",
+        filename="dream_trance_midi_pack_v3_6.zip",
         media_type="application/zip",
         background=BackgroundTask(lambda: out_zip.unlink(missing_ok=True))
     )
