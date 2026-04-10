@@ -1230,38 +1230,48 @@ def build_motif_family(identity_blueprint, root: str, chords):
 
 def plan_drop_phrase_roles(section_name: str, bars: int):
     cycles = max(1, (bars + 3) // 4)
-    if "drop 2" in section_name.lower():
-        seed = ["variation", "lift", "statement", "lift", "variation", "lift", "statement", "climax"]
-    else:
-        seed = ["statement", "variation", "statement", "lift", "variation", "lift", "statement", "climax"]
-    roles = []
-    for i in range(cycles):
-        if i < len(seed):
-            roles.append(seed[i])
-        else:
-            roles.append(seed[-2] if i < cycles - 1 else seed[-1])
-    if cycles == 1:
-        roles = ["climax" if "drop 2" in section_name.lower() else "statement"]
-    elif cycles == 2 and "drop 2" in section_name.lower():
-        roles[-1] = "climax"
-    elif cycles >= 2:
-        role_priority = {
-    "statement": 0,
-    "variation": 1,
-    "lift": 2,
-    "climax": 3
-}
 
-if "drop 2" in section_name.lower():
-    roles[-1] = "climax"
-else:
-    current_role = roles[-1]
-    if current_role not in role_priority:
-        current_role = "statement"
-    roles[-1] = max(
-        ["statement", "variation", "lift"],
-        key=lambda r: role_priority[r]
-    )
+    if "drop 2" in section_name.lower():
+        if cycles == 1:
+            roles = ["climax"]
+        elif cycles == 2:
+            roles = ["lift", "climax"]
+        elif cycles == 3:
+            roles = ["variation", "lift", "climax"]
+        else:
+            roles = [
+                "variation",
+                "lift",
+                "statement",
+                "lift",
+                "variation",
+                "lift",
+                "statement",
+                "climax",
+            ][:cycles]
+            while len(roles) < cycles:
+                roles.insert(-1, "lift")
+    else:
+        if cycles == 1:
+            roles = ["statement"]
+        elif cycles == 2:
+            roles = ["statement", "lift"]
+        elif cycles == 3:
+            roles = ["statement", "variation", "lift"]
+        else:
+            roles = [
+                "statement",
+                "variation",
+                "statement",
+                "lift",
+                "variation",
+                "lift",
+                "statement",
+                "lift",
+            ][:cycles]
+            while len(roles) < cycles:
+                roles.append("lift")
+
     return roles
 
 
