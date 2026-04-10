@@ -1,6 +1,6 @@
 # ==========================================
-# Dream Trance MIDI Generator V4.0.1
-# Modern UI + Full Song Engine
+# Dream Trance Generator V4.1
+# Pro Control Panel + Structured Engine
 # ==========================================
 
 from fastapi import FastAPI, Form
@@ -8,10 +8,9 @@ from fastapi.responses import HTMLResponse, FileResponse
 from mido import Message, MidiFile, MidiTrack, MetaMessage, bpm2tempo
 from pathlib import Path
 from uuid import uuid4
-import random
-import time
+import random, time
 
-app = FastAPI(title="Dream Trance Generator V4.0.1")
+app = FastAPI(title="Dream Trance Generator V4.1")
 
 EXPORTS = Path("exports")
 EXPORTS.mkdir(exist_ok=True)
@@ -36,30 +35,41 @@ def add(ev,t,note,len,vel=90):
     ev.append((t+len,Message("note_off",note=note,velocity=0,time=0)))
 
 # ===============================
-# 🧠 V4 ENGINE
+# 🧠 BLUEPRINT ENGINE
 # ===============================
 
-def blueprint(rng):
+def blueprint(rng, variation, density, energy_profile):
     return {
         "chord": rng.choice(["block","rhythmic","syncopated","broken","wide"]),
         "arp": rng.choice(["16","8","triplet","drive","minimal"]),
         "bass": rng.choice(["offbeat","rolling","sync","hybrid"]),
-        "drums": rng.choice(["std","drive","minimal","festival"])
+        "drums": rng.choice(["std","drive","minimal","festival"]),
+        "variation": variation,
+        "density": density,
+        "energy_profile": energy_profile
     }
 
 # ===============================
 # 🎹 GENERATORS
 # ===============================
 
-def chords(root):
-    return [
-        [n(root,1),n(root,3),n(root,5)],
-        [n(root,6),n(root,1,3),n(root,3,3)],
-        [n(root,3),n(root,5),n(root,7)],
-        [n(root,7),n(root,2,5),n(root,4,5)]
-    ]
+def chords(root, progression):
+    if progression == "uplifting":
+        return [
+            [n(root,1),n(root,3),n(root,5)],
+            [n(root,6),n(root,1,3),n(root,3,3)],
+            [n(root,3),n(root,5),n(root,7)],
+            [n(root,7),n(root,2,5),n(root,4,5)]
+        ]
+    else:
+        return [
+            [n(root,1),n(root,3),n(root,5)],
+            [n(root,4),n(root,6),n(root,1,5)],
+            [n(root,6),n(root,1,3),n(root,3,3)],
+            [n(root,7),n(root,2,5),n(root,4,5)]
+        ]
 
-def gen_chords(chords,style,bars):
+def gen_chords(chords,style,bars,density):
     ev=[]
     for b in range(bars):
         c=chords[b%4]
@@ -70,9 +80,10 @@ def gen_chords(chords,style,bars):
                 add(ev,t0,note_,BAR)
 
         elif style=="rhythmic":
-            for i in range(4):
+            steps = 4 if density=="medium" else 8
+            for i in range(steps):
                 for note_ in c:
-                    add(ev,t0+tick(i),note_,tick(0.8))
+                    add(ev,t0+tick(i*(4/steps)),note_,tick(0.6))
 
         elif style=="syncopated":
             for i in [0,1.5,2.75]:
@@ -90,27 +101,21 @@ def gen_chords(chords,style,bars):
 
     return ev
 
-def gen_arp(chords,style,bars):
+def gen_arp(chords,style,bars,density):
     ev=[]
     for b in range(bars):
         c=chords[b%4]
         t0=b*BAR
 
-        if style=="16":
-            for i in range(16):
-                add(ev,t0+tick(i*0.25),c[i%3]+12,tick(0.2))
+        steps = 16 if density=="high" else 8
 
-        elif style=="8":
-            for i in range(8):
-                add(ev,t0+tick(i*0.5),c[i%3]+12,tick(0.3))
+        if style=="16":
+            for i in range(steps):
+                add(ev,t0+tick(i*(4/steps)),c[i%3]+12,tick(0.2))
 
         elif style=="triplet":
             for i in range(12):
                 add(ev,t0+tick(i*(4/12)),c[i%3]+12,tick(0.25))
-
-        elif style=="drive":
-            for i in range(16):
-                add(ev,t0+tick(i*0.25),c[(i+1)%3]+12,tick(0.2))
 
         elif style=="minimal":
             add(ev,t0,c[0]+12,BAR)
@@ -131,10 +136,6 @@ def gen_bass(chords,style,bars):
             for i in range(8):
                 add(ev,t0+tick(i*0.5),root,tick(0.3))
 
-        elif style=="sync":
-            for i in [0.75,1.75,2.25,3.25]:
-                add(ev,t0+tick(i),root,tick(0.3))
-
         elif style=="hybrid":
             if b%2==0:
                 for i in [0.5,1.5,2.5,3.5]:
@@ -145,21 +146,19 @@ def gen_bass(chords,style,bars):
 
     return ev
 
-def gen_drums(style,bars):
+def gen_drums(style,bars,energy):
     ev=[]
     for b in range(bars):
         t0=b*BAR
 
         for beat in [0,1,2,3]:
-            add(ev,t0+tick(beat),36,tick(0.1),100)
+            vel = 100 if energy=="high" else 85
+            add(ev,t0+tick(beat),36,tick(0.1),vel)
 
         for beat in [1,3]:
             add(ev,t0+tick(beat),38,tick(0.1),110)
 
-        density=8
-        if style=="festival": density=16
-        if style=="minimal": density=4
-
+        density = 16 if style=="festival" else 8
         for i in range(density):
             add(ev,t0+tick(i*(4/density)),42,tick(0.1),70)
 
@@ -169,18 +168,19 @@ def gen_drums(style,bars):
 # 🎧 BUILD TRACK
 # ===============================
 
-def build_track(bpm,root):
+def build_track(bpm, root, progression, variation, density, energy_profile):
     rng=random.Random(time.time_ns())
-    bp=blueprint(rng)
-    ch=chords(root)
 
-    bars=64
+    bp=blueprint(rng,variation,density,energy_profile)
+    ch=chords(root,progression)
+
+    bars = 64
 
     tracks={
-        "chords": gen_chords(ch,bp["chord"],bars),
-        "arp": gen_arp(ch,bp["arp"],bars),
+        "chords": gen_chords(ch,bp["chord"],bars,density),
+        "arp": gen_arp(ch,bp["arp"],bars,density),
         "bass": gen_bass(ch,bp["bass"],bars),
-        "drums": gen_drums(bp["drums"],bars)
+        "drums": gen_drums(bp["drums"],bars,energy_profile)
     }
 
     return tracks
@@ -209,38 +209,70 @@ def to_midi(tracks,bpm):
     return midi
 
 # ===============================
-# 🌐 MODERN UI
+# 🌐 UI
 # ===============================
 
 @app.get("/",response_class=HTMLResponse)
 def home():
     return """
     <html>
-    <head>
-    <title>Trance Generator V4</title>
-    <style>
-    body{background:#0b0f1a;color:white;font-family:Arial;text-align:center;padding:40px}
-    .card{background:#111827;padding:30px;border-radius:15px;max-width:400px;margin:auto}
-    input,button{padding:10px;margin:10px;border-radius:8px;border:none}
-    button{background:#6366f1;color:white;font-weight:bold;cursor:pointer}
-    </style>
-    </head>
-    <body>
-    <div class="card">
-    <h2>🎧 Trance Generator V4</h2>
+    <body style="background:#0b0f1a;color:white;font-family:sans-serif;text-align:center">
+
+    <h2>🎧 Trance Generator V4.1</h2>
+
     <form method="post" action="/generate">
-    BPM:<br><input name="bpm" value="138"><br>
-    Key:<br><input name="key" value="F"><br>
+
+    BPM:<br><input name="bpm" value="138"><br><br>
+
+    Key:<br>
+    <select name="key">
+    <option>F</option><option>G</option><option>A</option><option>C</option>
+    </select><br><br>
+
+    Progression:<br>
+    <select name="progression">
+    <option value="uplifting">Uplifting</option>
+    <option value="classic">Classic</option>
+    </select><br><br>
+
+    Energy Profile:<br>
+    <select name="energy_profile">
+    <option value="low">Low</option>
+    <option value="medium">Medium</option>
+    <option value="high">High</option>
+    </select><br><br>
+
+    Density:<br>
+    <select name="density">
+    <option>low</option>
+    <option selected>medium</option>
+    <option>high</option>
+    </select><br><br>
+
+    Variation Intensity:<br>
+    <select name="variation">
+    <option>low</option>
+    <option selected>medium</option>
+    <option>high</option>
+    </select><br><br>
+
     <button type="submit">Generate Track</button>
+
     </form>
-    </div>
     </body>
     </html>
     """
 
 @app.post("/generate")
-def generate(bpm:int=Form(...),key:str=Form(...)):
-    tracks=build_track(bpm,key)
+def generate(
+    bpm:int=Form(...),
+    key:str=Form(...),
+    progression:str=Form(...),
+    variation:str=Form(...),
+    density:str=Form(...),
+    energy_profile:str=Form(...)
+):
+    tracks=build_track(bpm,key,progression,variation,density,energy_profile)
     midi=to_midi(tracks,bpm)
 
     file=EXPORTS/f"{uuid4()}.mid"
