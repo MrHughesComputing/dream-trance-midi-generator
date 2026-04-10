@@ -3,6 +3,8 @@ from uuid import uuid4
 from pathlib import Path
 import tempfile
 import zipfile
+import random
+import time
 
 from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, FileResponse
@@ -14,7 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 EXPORTS_DIR = BASE_DIR / "exports"
 
-app = FastAPI(title="Dream Trance MIDI Generator V3.6")
+app = FastAPI(title="Dream Trance MIDI Generator V3.7")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
@@ -100,7 +102,7 @@ HTML = """
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dream Trance MIDI Generator V3.6</title>
+  <title>Dream Trance MIDI Generator V3.7</title>
   <style>
     :root {
       --bg: #061121;
@@ -453,10 +455,10 @@ HTML = """
   <div class="shell">
     <section class="hero">
       <div class="hero-card">
-        <div class="eyebrow">Dream Trance MIDI Generator • V3.6 Motif Evolution Engine</div>
+        <div class="eyebrow">Dream Trance MIDI Generator • V3.7 Controlled Creativity Engine</div>
         <h1>Push the generator toward motif-driven trance writing with evolving hook families, phrase-role-aware drops, breakdown memory, stronger countermelody, and a more decisive final Drop 2 climax.</h1>
         <p class="sub">
-          V3.6 preserves the V3.5 stability and hook authority while adding motif-family writing, phrase-role-aware drops, emotional breakdown memory, stronger countermelody answers, and a true final Drop 2 climax.
+          V3.7 preserves the V3.6 composition logic while adding controlled creativity, motif variability, rhythm-family rotation, and per-run idea generation without breaking trance-safe structure.
         </p>
         <div class="pill">Exports aligned full-length stems + combined arrangement MIDI</div>
       </div>
@@ -1034,6 +1036,20 @@ def enforce_hero_note(phrase_events, hero_note: int, hero_start_min_beat: float 
 
 
 
+def create_rng(seed: int | None = None):
+    if seed is None:
+        seed = ((time.time_ns() ^ uuid4().int) & 0xFFFFFFFF)
+    return random.Random(seed), seed
+
+
+def maybe_jitter_note(rng, note: int, amount: int = 2):
+    return note + rng.choice([-amount, -1, 0, 0, 0, 1, amount])
+
+
+def choose_weighted(rng, items):
+    return items[rng.randrange(len(items))]
+
+
 def invert_fragment(notes, pivot):
     inverted = []
     for n in notes:
@@ -1049,115 +1065,79 @@ def rotate_fragment(notes, steps: int = 1):
     return notes[steps:] + notes[:steps]
 
 
-def build_motif_rhythm_family():
-    return {
-        "statement": [
-            (0, 0.00, 0.72, "strong"),
-            (0, 1.00, 0.42, "passing"),
-            (0, 2.00, 0.48, "support"),
-            (0, 3.00, 0.68, "strong"),
-            (1, 0.00, 0.50, "support"),
-            (1, 1.00, 0.34, "passing"),
-            (1, 2.00, 0.42, "support"),
-            (1, 3.00, 0.66, "strong"),
-            (2, 0.00, 0.40, "support"),
-            (2, 0.75, 0.24, "passing"),
-            (2, 1.50, 0.34, "support"),
-            (2, 2.25, 0.32, "strong"),
-            (2, 3.00, 0.64, "strong"),
-            (3, 0.00, 0.44, "support"),
-            (3, 0.90, 0.34, "support"),
-            (3, 1.75, 0.30, "strong"),
-            (3, 2.60, 0.22, "passing"),
-            (3, 3.05, 0.88, "hero"),
+def build_motif_rhythm_family(rng):
+    statement_options = [
+        [
+            (0, 0.00, 0.72, "strong"), (0, 1.00, 0.42, "passing"), (0, 2.00, 0.48, "support"), (0, 3.00, 0.68, "strong"),
+            (1, 0.00, 0.50, "support"), (1, 1.00, 0.34, "passing"), (1, 2.00, 0.42, "support"), (1, 3.00, 0.66, "strong"),
+            (2, 0.00, 0.40, "support"), (2, 0.75, 0.24, "passing"), (2, 1.50, 0.34, "support"), (2, 2.25, 0.32, "strong"),
+            (2, 3.00, 0.64, "strong"), (3, 0.00, 0.44, "support"), (3, 0.90, 0.34, "support"), (3, 1.75, 0.30, "strong"),
+            (3, 2.60, 0.22, "passing"), (3, 3.05, 0.88, "hero"),
         ],
-        "variation": [
-            (0, 0.00, 0.62, "strong"),
-            (0, 0.75, 0.26, "passing"),
-            (0, 1.50, 0.32, "support"),
-            (0, 2.25, 0.28, "passing"),
-            (0, 3.00, 0.66, "strong"),
-            (1, 0.00, 0.44, "support"),
-            (1, 1.00, 0.26, "passing"),
-            (1, 1.75, 0.30, "support"),
-            (1, 2.40, 0.22, "passing"),
-            (1, 3.00, 0.68, "strong"),
-            (2, 0.00, 0.38, "support"),
-            (2, 0.75, 0.24, "passing"),
-            (2, 1.35, 0.28, "support"),
-            (2, 2.00, 0.30, "strong"),
-            (2, 2.70, 0.24, "passing"),
-            (2, 3.00, 0.62, "strong"),
-            (3, 0.00, 0.38, "support"),
-            (3, 0.82, 0.28, "support"),
-            (3, 1.56, 0.28, "strong"),
-            (3, 2.28, 0.18, "passing"),
-            (3, 2.64, 0.20, "strong"),
-            (3, 3.10, 0.90, "hero"),
+        [
+            (0, 0.00, 0.68, "strong"), (0, 0.75, 0.26, "passing"), (0, 1.50, 0.34, "support"), (0, 3.00, 0.70, "strong"),
+            (1, 0.00, 0.46, "support"), (1, 1.00, 0.30, "passing"), (1, 2.00, 0.44, "support"), (1, 3.00, 0.64, "strong"),
+            (2, 0.00, 0.38, "support"), (2, 0.62, 0.18, "passing"), (2, 1.35, 0.26, "support"), (2, 2.20, 0.30, "strong"),
+            (2, 3.00, 0.66, "strong"), (3, 0.00, 0.40, "support"), (3, 0.82, 0.28, "support"), (3, 1.70, 0.28, "strong"),
+            (3, 2.50, 0.20, "passing"), (3, 3.08, 0.90, "hero"),
         ],
-        "lift": [
-            (0, 0.00, 0.56, "strong"),
-            (0, 0.75, 0.24, "passing"),
-            (0, 1.50, 0.28, "support"),
-            (0, 2.25, 0.24, "passing"),
-            (0, 3.00, 0.64, "strong"),
-            (1, 0.00, 0.40, "support"),
-            (1, 0.75, 0.20, "passing"),
-            (1, 1.35, 0.24, "support"),
-            (1, 2.00, 0.24, "passing"),
-            (1, 2.55, 0.24, "strong"),
-            (1, 3.00, 0.56, "strong"),
-            (2, 0.00, 0.34, "support"),
-            (2, 0.62, 0.18, "passing"),
-            (2, 1.10, 0.20, "support"),
-            (2, 1.58, 0.18, "passing"),
-            (2, 2.02, 0.22, "strong"),
-            (2, 2.46, 0.20, "passing"),
-            (2, 2.82, 0.24, "strong"),
-            (2, 3.18, 0.38, "strong"),
-            (3, 0.00, 0.34, "support"),
-            (3, 0.68, 0.18, "passing"),
-            (3, 1.18, 0.20, "support"),
-            (3, 1.82, 0.20, "strong"),
-            (3, 2.34, 0.18, "passing"),
-            (3, 2.72, 0.22, "strong"),
+    ]
+    variation_options = [
+        [
+            (0, 0.00, 0.62, "strong"), (0, 0.75, 0.26, "passing"), (0, 1.50, 0.32, "support"), (0, 2.25, 0.28, "passing"), (0, 3.00, 0.66, "strong"),
+            (1, 0.00, 0.44, "support"), (1, 1.00, 0.26, "passing"), (1, 1.75, 0.30, "support"), (1, 2.40, 0.22, "passing"), (1, 3.00, 0.68, "strong"),
+            (2, 0.00, 0.38, "support"), (2, 0.75, 0.24, "passing"), (2, 1.35, 0.28, "support"), (2, 2.00, 0.30, "strong"), (2, 2.70, 0.24, "passing"),
+            (2, 3.00, 0.62, "strong"), (3, 0.00, 0.38, "support"), (3, 0.82, 0.28, "support"), (3, 1.56, 0.28, "strong"), (3, 2.28, 0.18, "passing"),
+            (3, 2.64, 0.20, "strong"), (3, 3.10, 0.90, "hero"),
+        ],
+        [
+            (0, 0.00, 0.58, "strong"), (0, 0.50, 0.18, "passing"), (0, 1.10, 0.26, "support"), (0, 2.00, 0.24, "passing"), (0, 3.00, 0.70, "strong"),
+            (1, 0.00, 0.40, "support"), (1, 0.75, 0.18, "passing"), (1, 1.50, 0.26, "support"), (1, 2.25, 0.18, "passing"), (1, 3.00, 0.66, "strong"),
+            (2, 0.00, 0.36, "support"), (2, 0.62, 0.18, "passing"), (2, 1.10, 0.24, "support"), (2, 1.88, 0.26, "strong"), (2, 2.56, 0.18, "passing"),
+            (2, 3.00, 0.58, "strong"), (3, 0.00, 0.36, "support"), (3, 0.68, 0.18, "support"), (3, 1.38, 0.24, "strong"), (3, 2.10, 0.16, "passing"),
+            (3, 2.56, 0.22, "strong"), (3, 3.12, 0.92, "hero"),
+        ],
+    ]
+    lift_options = [
+        [
+            (0, 0.00, 0.56, "strong"), (0, 0.75, 0.24, "passing"), (0, 1.50, 0.28, "support"), (0, 2.25, 0.24, "passing"), (0, 3.00, 0.64, "strong"),
+            (1, 0.00, 0.40, "support"), (1, 0.75, 0.20, "passing"), (1, 1.35, 0.24, "support"), (1, 2.00, 0.24, "passing"), (1, 2.55, 0.24, "strong"),
+            (1, 3.00, 0.56, "strong"), (2, 0.00, 0.34, "support"), (2, 0.62, 0.18, "passing"), (2, 1.10, 0.20, "support"), (2, 1.58, 0.18, "passing"),
+            (2, 2.02, 0.22, "strong"), (2, 2.46, 0.20, "passing"), (2, 2.82, 0.24, "strong"), (2, 3.18, 0.38, "strong"), (3, 0.00, 0.34, "support"),
+            (3, 0.68, 0.18, "passing"), (3, 1.18, 0.20, "support"), (3, 1.82, 0.20, "strong"), (3, 2.34, 0.18, "passing"), (3, 2.72, 0.22, "strong"),
             (3, 3.18, 0.98, "hero"),
         ],
-        "climax": [
-            (0, 0.00, 0.58, "strong"),
-            (0, 0.62, 0.22, "passing"),
-            (0, 1.10, 0.24, "support"),
-            (0, 1.58, 0.20, "passing"),
-            (0, 2.00, 0.24, "strong"),
-            (0, 2.48, 0.20, "passing"),
-            (0, 2.84, 0.26, "strong"),
-            (0, 3.20, 0.56, "strong"),
-            (1, 0.00, 0.38, "support"),
-            (1, 0.58, 0.18, "passing"),
-            (1, 1.02, 0.20, "support"),
-            (1, 1.46, 0.18, "passing"),
-            (1, 1.88, 0.22, "strong"),
-            (1, 2.32, 0.20, "passing"),
-            (1, 2.72, 0.24, "strong"),
-            (1, 3.10, 0.56, "strong"),
-            (2, 0.00, 0.32, "support"),
-            (2, 0.52, 0.16, "passing"),
-            (2, 0.92, 0.18, "support"),
-            (2, 1.30, 0.18, "passing"),
-            (2, 1.72, 0.22, "strong"),
-            (2, 2.18, 0.20, "passing"),
-            (2, 2.56, 0.24, "strong"),
-            (2, 2.94, 0.22, "strong"),
-            (2, 3.22, 0.50, "strong"),
-            (3, 0.00, 0.34, "support"),
-            (3, 0.58, 0.18, "passing"),
-            (3, 1.02, 0.20, "support"),
-            (3, 1.46, 0.18, "passing"),
-            (3, 1.92, 0.22, "strong"),
-            (3, 2.34, 0.18, "passing"),
-            (3, 2.72, 0.22, "strong"),
-            (3, 3.10, 1.12, "hero"),
+        [
+            (0, 0.00, 0.54, "strong"), (0, 0.62, 0.18, "passing"), (0, 1.18, 0.22, "support"), (0, 1.82, 0.18, "passing"), (0, 2.36, 0.22, "strong"), (0, 3.00, 0.62, "strong"),
+            (1, 0.00, 0.38, "support"), (1, 0.58, 0.16, "passing"), (1, 1.02, 0.18, "support"), (1, 1.48, 0.16, "passing"), (1, 1.92, 0.18, "strong"), (1, 2.40, 0.18, "passing"),
+            (1, 2.82, 0.24, "strong"), (1, 3.18, 0.54, "strong"), (2, 0.00, 0.32, "support"), (2, 0.50, 0.16, "passing"), (2, 0.92, 0.18, "support"), (2, 1.34, 0.16, "passing"),
+            (2, 1.78, 0.18, "strong"), (2, 2.26, 0.18, "passing"), (2, 2.70, 0.22, "strong"), (2, 3.12, 0.44, "strong"), (3, 0.00, 0.32, "support"), (3, 0.56, 0.16, "passing"),
+            (3, 1.02, 0.18, "support"), (3, 1.64, 0.18, "strong"), (3, 2.18, 0.16, "passing"), (3, 2.66, 0.22, "strong"), (3, 3.22, 1.00, "hero"),
         ],
+    ]
+    climax_options = [
+        [
+            (0, 0.00, 0.58, "strong"), (0, 0.62, 0.22, "passing"), (0, 1.10, 0.24, "support"), (0, 1.58, 0.20, "passing"), (0, 2.00, 0.24, "strong"), (0, 2.48, 0.20, "passing"),
+            (0, 2.84, 0.26, "strong"), (0, 3.20, 0.56, "strong"), (1, 0.00, 0.38, "support"), (1, 0.58, 0.18, "passing"), (1, 1.02, 0.20, "support"), (1, 1.46, 0.18, "passing"),
+            (1, 1.88, 0.22, "strong"), (1, 2.32, 0.20, "passing"), (1, 2.72, 0.24, "strong"), (1, 3.10, 0.56, "strong"), (2, 0.00, 0.32, "support"), (2, 0.52, 0.16, "passing"),
+            (2, 0.92, 0.18, "support"), (2, 1.30, 0.18, "passing"), (2, 1.72, 0.22, "strong"), (2, 2.18, 0.20, "passing"), (2, 2.56, 0.24, "strong"), (2, 2.94, 0.22, "strong"),
+            (2, 3.22, 0.50, "strong"), (3, 0.00, 0.34, "support"), (3, 0.58, 0.18, "passing"), (3, 1.02, 0.20, "support"), (3, 1.46, 0.18, "passing"), (3, 1.92, 0.22, "strong"),
+            (3, 2.34, 0.18, "passing"), (3, 2.72, 0.22, "strong"), (3, 3.10, 1.12, "hero"),
+        ],
+        [
+            (0, 0.00, 0.54, "strong"), (0, 0.46, 0.18, "passing"), (0, 0.92, 0.20, "support"), (0, 1.34, 0.18, "passing"), (0, 1.80, 0.20, "strong"), (0, 2.26, 0.18, "passing"),
+            (0, 2.68, 0.22, "strong"), (0, 3.08, 0.52, "strong"), (1, 0.00, 0.34, "support"), (1, 0.48, 0.16, "passing"), (1, 0.90, 0.18, "support"), (1, 1.32, 0.16, "passing"),
+            (1, 1.78, 0.20, "strong"), (1, 2.22, 0.18, "passing"), (1, 2.66, 0.22, "strong"), (1, 3.06, 0.52, "strong"), (2, 0.00, 0.30, "support"), (2, 0.44, 0.14, "passing"),
+            (2, 0.82, 0.16, "support"), (2, 1.18, 0.14, "passing"), (2, 1.60, 0.18, "strong"), (2, 2.04, 0.16, "passing"), (2, 2.44, 0.20, "strong"), (2, 2.82, 0.20, "strong"),
+            (2, 3.10, 0.48, "strong"), (3, 0.00, 0.32, "support"), (3, 0.50, 0.16, "passing"), (3, 0.90, 0.18, "support"), (3, 1.34, 0.16, "passing"), (3, 1.82, 0.20, "strong"),
+            (3, 2.24, 0.16, "passing"), (3, 2.66, 0.22, "strong"), (3, 3.08, 1.16, "hero"),
+        ],
+    ]
+    return {
+        "statement": choose_weighted(rng, statement_options),
+        "variation": choose_weighted(rng, variation_options),
+        "lift": choose_weighted(rng, lift_options),
+        "climax": choose_weighted(rng, climax_options),
     }
 
 
@@ -1204,73 +1184,98 @@ def derive_climax_from_cell(cell, identity_blueprint):
     ]
 
 
-def build_motif_family(identity_blueprint, root: str, chords):
+def build_motif_family(identity_blueprint, root: str, chords, rng):
     sig = identity_blueprint["hook_signature"]
-    base_cell = [
-        clamp(sig["anchor"], 72, 92),
-        clamp(sig["support"], 72, 92),
-        clamp(sig["answer"], 72, 92),
+    scale_pool = scale_notes_in_range(root, 72, 96)
+    chord_pool_a = chord_tones_in_range(chords[0], 72, 92)
+    chord_pool_b = chord_tones_in_range(chords[1 % len(chords)], 72, 96)
+
+    cell_patterns = [
+        [sig["anchor"], sig["support"], sig["answer"]],
+        [sig["anchor"], sig["passing"], sig["answer"]],
+        [sig["support"], sig["anchor"], sig["pivot"]],
+        [sig["anchor"], sig["pivot"], sig["lift"]],
+        [sig["answer"], sig["support"], sig["pivot"]],
     ]
+    base_cell = choose_weighted(rng, cell_patterns)
+
+    if rng.random() < 0.45:
+        base_cell = rotate_fragment(base_cell, rng.choice([1, 2]))
+    if rng.random() < 0.30:
+        swap_idx = rng.choice([0, 1, 2])
+        replacement_pool = chord_pool_a if swap_idx < 2 else chord_pool_b
+        base_cell[swap_idx] = nearest_note_from_pool(maybe_jitter_note(rng, base_cell[swap_idx], 2), replacement_pool)
+
+    base_cell = [
+        clamp(nearest_note_from_pool(n, scale_pool), 72, 94)
+        for n in base_cell
+    ]
+
+    statement = derive_statement_from_cell(base_cell, identity_blueprint)
+    variation = derive_variation_from_cell(base_cell, identity_blueprint)
+    lift = derive_lift_from_cell(base_cell, identity_blueprint)
+    climax = derive_climax_from_cell(base_cell, identity_blueprint)
+
+    if rng.random() < 0.50:
+        variation = rotate_fragment(variation, rng.choice([1, 2, 3]))
+    if rng.random() < 0.35:
+        lift = rotate_fragment(lift, rng.choice([1, 2]))
+
     family = {
         "cell": base_cell,
-        "statement": derive_statement_from_cell(base_cell, identity_blueprint),
-        "variation": derive_variation_from_cell(base_cell, identity_blueprint),
-        "lift": derive_lift_from_cell(base_cell, identity_blueprint),
-        "climax": derive_climax_from_cell(base_cell, identity_blueprint),
+        "statement": statement,
+        "variation": variation,
+        "lift": lift,
+        "climax": climax,
         "breakdown_hint": [
             clamp(base_cell[0] - 12, 60, 84),
-            clamp(base_cell[2] - 12, 60, 84),
+            clamp(base_cell[min(1, len(base_cell)-1)] - 12, 60, 84),
             clamp(sig["pivot"] - 12, 60, 84),
             clamp(sig["payoff"] - 12, 60, 84),
         ],
     }
     family["inversion"] = invert_fragment(base_cell, base_cell[0])
+    family["variant_shift"] = rng.choice([-2, -1, 0, 0, 1, 2])
     return family
 
 
-def plan_drop_phrase_roles(section_name: str, bars: int):
+def plan_drop_phrase_roles(section_name: str, bars: int, rng=None):
     cycles = max(1, (bars + 3) // 4)
+    drop2 = "drop 2" in section_name.lower()
 
-    if "drop 2" in section_name.lower():
-        if cycles == 1:
-            roles = ["climax"]
-        elif cycles == 2:
-            roles = ["lift", "climax"]
-        elif cycles == 3:
-            roles = ["variation", "lift", "climax"]
-        else:
-            roles = [
-                "variation",
-                "lift",
-                "statement",
-                "lift",
-                "variation",
-                "lift",
-                "statement",
-                "climax",
-            ][:cycles]
-            while len(roles) < cycles:
-                roles.insert(-1, "lift")
+    if drop2:
+        templates = [
+            ["variation", "lift", "statement", "lift", "variation", "lift", "statement", "climax"],
+            ["statement", "variation", "lift", "variation", "lift", "statement", "lift", "climax"],
+            ["variation", "statement", "lift", "variation", "lift", "lift", "statement", "climax"],
+        ]
     else:
-        if cycles == 1:
-            roles = ["statement"]
-        elif cycles == 2:
-            roles = ["statement", "lift"]
-        elif cycles == 3:
-            roles = ["statement", "variation", "lift"]
+        templates = [
+            ["statement", "variation", "statement", "lift", "variation", "lift", "statement", "lift"],
+            ["statement", "statement", "variation", "lift", "variation", "statement", "lift", "lift"],
+            ["statement", "variation", "lift", "statement", "variation", "lift", "statement", "lift"],
+        ]
+
+    template = choose_weighted(rng, templates) if rng else templates[0]
+    roles = []
+    for i in range(cycles):
+        if i < len(template):
+            roles.append(template[i])
         else:
-            roles = [
-                "statement",
-                "variation",
-                "statement",
-                "lift",
-                "variation",
-                "lift",
-                "statement",
-                "lift",
-            ][:cycles]
-            while len(roles) < cycles:
-                roles.append("lift")
+            roles.append("lift" if drop2 or i >= cycles - 2 else template[-1])
+
+    if cycles == 1:
+        roles = ["climax" if drop2 else "statement"]
+    elif cycles == 2:
+        roles = ["lift", "climax"] if drop2 else ["statement", "lift"]
+    elif cycles == 3:
+        roles = ["variation", "lift", "climax"] if drop2 else ["statement", "variation", "lift"]
+    else:
+        if drop2:
+            roles[-1] = "climax"
+            roles[-2] = "statement" if roles[-2] == "climax" else roles[-2]
+        else:
+            roles[-1] = "lift"
 
     return roles
 
@@ -1285,27 +1290,43 @@ def plan_final_climax_window(section_name: str, local_bar: int, total_bars: int)
     }
 
 
-def evolve_hero_strategy(phrase_role: str, identity_blueprint, drop_variant: int, phase: int):
+def evolve_hero_strategy(phrase_role: str, identity_blueprint, drop_variant: int, phase: int, rng=None):
     peak = identity_blueprint["lead_register_peak"]
     base = identity_blueprint["hero_note"]
+    micro_shift = 0 if rng is None else rng.choice([0, 0, 1])
     if phrase_role == "statement":
-        return {"hero_note": clamp(base, 78, peak), "hero_start": 3.00, "hold_beats": 0.92}
+        return {"hero_note": clamp(base + micro_shift, 78, peak), "hero_start": 3.00, "hold_beats": 0.92}
     if phrase_role == "variation":
-        return {"hero_note": clamp(base + (1 if drop_variant == 2 else 0), 79, peak), "hero_start": 3.08, "hold_beats": 0.94}
+        return {"hero_note": clamp(base + (1 if drop_variant == 2 else 0) + micro_shift, 79, peak), "hero_start": 3.06 + (0.02 * micro_shift), "hold_beats": 0.94}
     if phrase_role == "lift":
-        return {"hero_note": clamp(base + 1 + phase, 80, peak), "hero_start": 3.18, "hold_beats": 1.00}
-    return {"hero_note": clamp(max(identity_blueprint["drop2_apex_note"], base + 2), 82, 102), "hero_start": 3.10, "hold_beats": 1.12}
+        return {"hero_note": clamp(base + 1 + phase + micro_shift, 80, peak), "hero_start": 3.14 + (0.02 * micro_shift), "hold_beats": 1.00}
+    return {"hero_note": clamp(max(identity_blueprint["drop2_apex_note"], base + 2 + micro_shift), 82, 102), "hero_start": 3.08 + (0.02 * micro_shift), "hold_beats": 1.12}
 
 
-def compose_motif_phrase(identity_blueprint, motif_family, phrase_role: str, drop_variant: int, phase: int, cycle_index: int):
-    rhythm_family = build_motif_rhythm_family()
-    rhythm = rhythm_family.get(phrase_role, rhythm_family["statement"])
-    note_pool = motif_family.get(phrase_role, motif_family["statement"])[:]
-    if phrase_role == "variation" and cycle_index % 2 == 1:
+def compose_motif_phrase(identity_blueprint, motif_family, phrase_role: str, drop_variant: int, phase: int, cycle_index: int, rng):
+    rhythm_family = build_motif_rhythm_family(rng)
+    rhythm = list(rhythm_family.get(phrase_role, rhythm_family["statement"]))
+    note_pool = list(motif_family.get(phrase_role, motif_family["statement"]))
+
+    if phrase_role == "variation":
+        if rng.random() < 0.60:
+            note_pool = rotate_fragment(note_pool, rng.choice([1, 2, 3]))
+    elif phrase_role == "lift":
+        if rng.random() < 0.75:
+            note_pool = rotate_fragment(note_pool, rng.choice([1, 2]))
+    elif phrase_role == "climax" and rng.random() < 0.50:
         note_pool = rotate_fragment(note_pool, 1)
-    elif phrase_role == "lift" and cycle_index % 2 == 1:
-        note_pool = rotate_fragment(note_pool, 2)
-    hero_strategy = evolve_hero_strategy(phrase_role, identity_blueprint, drop_variant, phase)
+
+    if rng.random() < 0.35:
+        removeable = [i for i, item in enumerate(rhythm) if item[3] == "passing"]
+        if removeable:
+            rhythm.pop(removeable[-1])
+    if rng.random() < 0.25 and phrase_role in ("variation", "lift", "climax"):
+        insert_idx = min(len(rhythm) - 1, rng.randrange(max(1, len(rhythm) - 1)))
+        bar_offset, beat_pos, _, _ = rhythm[insert_idx]
+        rhythm.insert(insert_idx + 1, (bar_offset, min(3.5, beat_pos + 0.28), 0.16, "passing"))
+
+    hero_strategy = evolve_hero_strategy(phrase_role, identity_blueprint, drop_variant, phase, rng=rng)
     contour_bonus = {"statement": 0, "variation": 1, "lift": 2, "climax": 3}[phrase_role]
     register_shift = 0
     if drop_variant == 2:
@@ -1323,8 +1344,10 @@ def compose_motif_phrase(identity_blueprint, motif_family, phrase_role: str, dro
             raw = hero_strategy["hero_note"]
             beat_pos = hero_strategy["hero_start"]
             beat_len = hero_strategy["hold_beats"]
+        elif role == "passing" and rng.random() < 0.35:
+            raw = maybe_jitter_note(rng, raw, 1)
         elif role == "strong" and phrase_role in ("lift", "climax") and beat_pos >= 2.5:
-            raw = apply_register_shift(raw, register_shift + contour_bonus, 74, 102)
+            raw = apply_register_shift(raw, register_shift + contour_bonus + rng.choice([0, 0, 1]), 74, 102)
         else:
             raw = apply_register_shift(raw, register_shift + min(contour_bonus, 2), 72, identity_blueprint["lead_register_peak"])
 
@@ -1345,32 +1368,44 @@ def compose_motif_phrase(identity_blueprint, motif_family, phrase_role: str, dro
     return phrase
 
 
-def build_countermelody_response(motif_family, phrase_role: str, chord, local_bar: int, drop_variant: int, phase: int):
+def build_countermelody_response(motif_family, phrase_role: str, chord, local_bar: int, drop_variant: int, phase: int, rng):
     cell = motif_family["cell"]
     root_line = clamp(chord["root"], 60, 81)
     third_line = clamp(chord["third"], 60, 83)
     fifth_line = clamp(chord["fifth"], 60, 84)
-    echo_a = clamp(cell[1] - 12, 60, 81)
-    echo_b = clamp(cell[2] - 12, 60, 82)
+    echo = rotate_fragment(cell, rng.choice([0, 1, 2]))
 
-    if local_bar % 4 == 0:
-        if phrase_role == "statement":
-            return [(2.75, 0.42, echo_a, "support"), (3.35, 0.42, third_line, "support")]
-        if phrase_role == "variation":
-            return [(2.50, 0.28, echo_a, "passing"), (2.92, 0.34, echo_b, "support"), (3.45, 0.34, fifth_line, "support")]
-        if phrase_role == "lift":
-            return [(2.42, 0.24, echo_a, "passing"), (2.78, 0.26, echo_b, "support"), (3.15, 0.30, fifth_line, "strong"), (3.58, 0.28, third_line, "support")]
-        return [(2.34, 0.22, echo_a, "passing"), (2.66, 0.22, echo_b, "support"), (2.98, 0.26, fifth_line, "strong"), (3.36, 0.56, root_line, "hero")]
+    if phrase_role == "statement":
+        phrase = [
+            (0.50, 0.28, clamp(echo[0] - 12, 60, 84), "support"),
+            (2.50, 0.34, third_line, "strong"),
+        ]
+    elif phrase_role == "variation":
+        phrase = [
+            (0.50, 0.24, clamp(echo[1] - 12, 60, 84), "support"),
+            (1.50, 0.18, clamp(echo[2] - 12, 60, 84), "passing"),
+            (2.50, 0.34, fifth_line, "strong"),
+        ]
+    elif phrase_role == "lift":
+        phrase = [
+            (0.50, 0.20, clamp(echo[0] - 12, 60, 84), "support"),
+            (1.25, 0.16, clamp(echo[1] - 12, 60, 84), "passing"),
+            (2.25, 0.20, clamp(echo[2] - 12, 60, 84), "support"),
+            (3.25, 0.38, fifth_line + (12 if drop_variant == 2 else 0), "strong"),
+        ]
+    else:
+        phrase = [
+            (0.25, 0.18, root_line, "support"),
+            (1.00, 0.18, third_line, "passing"),
+            (1.75, 0.18, fifth_line, "support"),
+            (2.50, 0.22, clamp(echo[0], 72, 90), "strong"),
+            (3.25, 0.42, clamp(max(fifth_line, chord["root"] + 12), 67, 91), "strong"),
+        ]
 
-    if local_bar % 4 == 1:
-        if phrase_role in ("lift", "climax") and drop_variant == 2:
-            return [(2.88, 0.24, third_line, "support"), (3.26, 0.30, fifth_line, "strong"), (3.70, 0.18, root_line, "support")]
-        return [(2.92, 0.28, third_line, "support"), (3.44, 0.32, fifth_line, "support")]
+    if rng.random() < 0.35 and phrase_role in ("variation", "lift", "climax"):
+        phrase.append((3.50, 0.16, clamp(echo[1] - (12 if phrase_role != "climax" else 0), 60, 90), "passing"))
 
-    if local_bar % 4 == 3 and phrase_role == "climax":
-        return [(2.36, 0.22, echo_b, "support"), (2.72, 0.22, fifth_line, "strong")]
-
-    return []
+    return phrase
 
 
 def build_breakdown_memory_map_v2(identity_blueprint, motif_family, root: str, chords):
@@ -1917,9 +1952,9 @@ def adapt_note_to_bar(note: int, root: str, chord, section_kind: str):
 
 
 
-def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int, drop_variant: int, identity_blueprint, section_name: str = "Drop"):
+def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int, drop_variant: int, identity_blueprint, rng, section_name: str = "Drop"):
     """
-    V3.6 lead rules:
+    V3.7 lead rules:
     - write drop phrases from a motif family rather than one repeating phrase template
     - assign phrase roles across 4-bar cycles
     - preserve hero-note enforcement while evolving its setup by phrase role
@@ -1927,9 +1962,9 @@ def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_t
     """
     events = []
     cycles = max(1, (bars_to_write + 3) // 4)
-    motif_family = build_motif_family(identity_blueprint, root, chords)
+    motif_family = build_motif_family(identity_blueprint, root, chords, rng)
     identity_blueprint["motif_family"] = motif_family
-    phrase_roles = plan_drop_phrase_roles(section_name, bars_to_write)
+    phrase_roles = plan_drop_phrase_roles(section_name, bars_to_write, rng=rng)
 
     for cycle_index in range(cycles):
         cycle_start_local = cycle_index * 4
@@ -1945,7 +1980,7 @@ def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_t
             if window["is_peak_phrase"]:
                 phrase_role = "climax"
 
-        phrase = compose_motif_phrase(identity_blueprint, motif_family, phrase_role, drop_variant, phase, cycle_index)
+        phrase = compose_motif_phrase(identity_blueprint, motif_family, phrase_role, drop_variant, phase, cycle_index, rng)
 
         previous_note = None
         for event in phrase:
@@ -2040,8 +2075,8 @@ def generate_build_lead_events(root: str, chords, absolute_start_bar: int, bars_
 
 
 
-def generate_breakdown_recall_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int, identity_blueprint):
-    motif_family = identity_blueprint.get("motif_family") or build_motif_family(identity_blueprint, root, chords)
+def generate_breakdown_recall_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int, identity_blueprint, rng=None):
+    motif_family = identity_blueprint.get("motif_family") or build_motif_family(identity_blueprint, root, chords, rng or random.Random(0))
     identity_blueprint["motif_family"] = motif_family
     memory_map = build_breakdown_memory_map_v2(identity_blueprint, motif_family, root, chords)
     events = []
@@ -2406,7 +2441,7 @@ def add_arp(tracks, start_tick_value: int, chord, section_kind: str, velocity: i
 
 
 
-def add_countermelody(tracks, start_tick_value: int, chord, local_bar: int, velocity: int, drop_variant: int = 1, total_bars: int = 32, hero_info=None, motif_family=None, phrase_role: str = "statement", section_name: str = "Drop"):
+def add_countermelody(tracks, start_tick_value: int, chord, local_bar: int, velocity: int, drop_variant: int = 1, total_bars: int = 32, hero_info=None, motif_family=None, phrase_role: str = "statement", section_name: str = "Drop", rng=None):
     phase = drop_phase_for_bar(local_bar, total_bars)
 
     if hero_info and hero_info.get("has_hero") and local_bar % 4 == 3 and phrase_role != "climax":
@@ -2417,7 +2452,7 @@ def add_countermelody(tracks, start_tick_value: int, chord, local_bar: int, velo
             "cell": [clamp(chord["root"] + 12, 72, 84), clamp(chord["third"] + 12, 72, 84), clamp(chord["fifth"] + 12, 72, 84)]
         }
 
-    phrase = build_countermelody_response(motif_family, phrase_role, chord, local_bar, drop_variant, phase)
+    phrase = build_countermelody_response(motif_family, phrase_role, chord, local_bar, drop_variant, phase, rng)
     if not phrase:
         return
 
@@ -2470,7 +2505,9 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
     energy_factor = ENERGY_LEVELS[energy]
     vocal_min, vocal_max = VOCAL_RANGES[vocalist]
     identity_blueprint = build_track_identity_blueprint(key_root, chords, arrangement, energy)
-    motif_family = build_motif_family(identity_blueprint, key_root, chords)
+    rng, creativity_seed = create_rng()
+    identity_blueprint["creativity_seed"] = creativity_seed
+    motif_family = build_motif_family(identity_blueprint, key_root, chords, rng)
     identity_blueprint["motif_family"] = motif_family
 
     tracks = {stem: [] for stem in STEMS}
@@ -2500,7 +2537,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
         build_variant = 2 if is_build_2 else 1
 
         if sec_kind == "drop":
-            phrase_roles = plan_drop_phrase_roles(sec["name"], sec["bars"])
+            phrase_roles = plan_drop_phrase_roles(sec["name"], sec["bars"], rng=rng)
             lead_events = generate_drop_lead_events(
                 key_root,
                 chords,
@@ -2509,6 +2546,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                 clamp(sec_profile["velocity"] + (6 if is_drop_2 else 0), 1, 124),
                 drop_variant,
                 identity_blueprint,
+                rng,
                 section_name=sec["name"],
             )
             add_phrase_events_to_track(tracks["lead"], lead_events)
@@ -2524,6 +2562,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                 clamp(sec_profile["velocity"] + (4 if is_build_2 else 0), 1, 124),
                 build_variant,
                 identity_blueprint,
+                rng=rng,
             )
             add_phrase_events_to_track(tracks["lead"], build_lead_events)
 
@@ -2634,6 +2673,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                     motif_family=motif_family,
                     phrase_role=phrase_role,
                     section_name=sec["name"],
+                    rng=rng,
                 )
 
             if sec_kind in ("verse", "breakdown", "build"):
