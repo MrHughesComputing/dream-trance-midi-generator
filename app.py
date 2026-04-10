@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 EXPORTS_DIR = BASE_DIR / "exports"
 
-app = FastAPI(title="Dream Trance MIDI Generator V3.0.1")
+app = FastAPI(title="Dream Trance MIDI Generator V3.1")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 TICKS = 480
@@ -98,7 +98,7 @@ HTML = """
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dream Trance MIDI Generator V3.0.1</title>
+  <title>Dream Trance MIDI Generator V3.1</title>
   <style>
     :root {
       --bg: #061121;
@@ -451,10 +451,10 @@ HTML = """
   <div class="shell">
     <section class="hero">
       <div class="hero-card">
-        <div class="eyebrow">Dream Trance MIDI Generator • V3.0.1 Hook Authority Engine</div>
-        <h1>Push the hook into anthem territory with stronger signature intervals, harder bar-4 payoff, and a more decisive Drop 2 arrival.</h1>
+        <div class="eyebrow">Dream Trance MIDI Generator • V3.1 Anthem Payoff Engine</div>
+        <h1>Drive the hook deeper into anthem territory with a more inevitable signature gesture, harder bar-4 release, stronger internal phrase contrast, and a bigger Drop 2 opening.</h1>
         <p class="sub">
-          V3.0.1 keeps the V3 hook authority work and adds safer export handling, server-side validation, and path stability improvements for more reliable real-world use.
+          V3.1 preserves the V3.0.1 stability improvements while pushing the musical engine toward clearer phrase payoff, stronger repeated identity, and more emotional release.
         </p>
         <div class="pill">Exports aligned full-length stems + combined arrangement MIDI</div>
       </div>
@@ -525,14 +525,14 @@ HTML = """
 
       <aside class="sidebar">
         <div class="tip">
-          <h3>What changed in V3.0.1</h3>
+          <h3>What changed in V3.1</h3>
           <ul>
-            <li>Hook authority logic from V3.0 is retained.</li>
-            <li>Each request now writes to a unique export ZIP.</li>
-            <li>Server-side BPM and form value validation added.</li>
-            <li>Static and export paths now use the app base directory.</li>
-            <li>Drop 2 arrival and bar-4 payoff logic remain intact.</li>
-            <li>Pre-drop gap remains for final impact.</li>
+            <li>Lead hook now has a firmer signature gesture and clearer answer bars.</li>
+            <li>Bar-4 payoff and Drop 2 arrival are pushed harder for anthem-level release.</li>
+            <li>Breakdown recall is spaced more emotionally to improve longing.</li>
+            <li>Unique export ZIPs, server-side validation, and base-directory paths are preserved.</li>
+            <li>Hook identity is repeated more intentionally across the 4-bar loop.</li>
+            <li>Pre-drop impact gap remains for final lift into Drop 2.</li>
           </ul>
         </div>
 
@@ -751,31 +751,40 @@ def nearest_note_from_pool(target: int, pool):
 
 def build_signature_hook_cell(root: str, first_chord, second_chord):
     """
-    V3.0:
-    Force a more iconic melodic identity by defining a signature
-    leap-and-return behaviour plus a stronger payoff note.
+    V3.1:
+    Push the hook toward anthem-level inevitability.
+    The cell now prioritises:
+    - a stable anchor
+    - a recognisable upper leap
+    - a dedicated answer tone for bar 2 contrast
+    - a more authoritative payoff ladder for bar 4
     """
-    first_pool = chord_tones_in_range(first_chord, 73, 88)
-    second_pool = chord_tones_in_range(second_chord, 74, 90)
+    first_pool = chord_tones_in_range(first_chord, 73, 90)
+    second_pool = chord_tones_in_range(second_chord, 73, 92)
 
     anchor = nearest_note_from_pool(note_name_to_midi(root, 5, 5), first_pool)
     support = nearest_note_from_pool(note_name_to_midi(root, 3, 5), first_pool)
+    answer = nearest_note_from_pool(note_name_to_midi(root, 1, 5), first_pool)
+    pivot = nearest_note_from_pool(note_name_to_midi(root, 7, 5), second_pool)
     lift = nearest_note_from_pool(note_name_to_midi(root, 1, 6), second_pool)
-    resolve = nearest_note_from_pool(note_name_to_midi(root, 1, 5), chord_tones_in_range(first_chord, 71, 84))
-    accent = nearest_note_from_pool(anchor + 12, chord_tones_in_range(first_chord, 84, 97))
-    pivot = nearest_note_from_pool(note_name_to_midi(root, 7, 5), chord_tones_in_range(second_chord, 74, 88))
-    payoff = nearest_note_from_pool(note_name_to_midi(root, 5, 5), chord_tones_in_range(second_chord, 72, 86))
+    apex = nearest_note_from_pool(note_name_to_midi(root, 3, 6), second_pool)
+    resolve = nearest_note_from_pool(note_name_to_midi(root, 1, 5), chord_tones_in_range(first_chord, 70, 84))
+    payoff = nearest_note_from_pool(note_name_to_midi(root, 5, 5), chord_tones_in_range(second_chord, 72, 87))
+    accent = nearest_note_from_pool(note_name_to_midi(root, 1, 6), chord_tones_in_range(second_chord, 83, 97))
+    final = nearest_note_from_pool(note_name_to_midi(root, 3, 6), chord_tones_in_range(second_chord, 84, 99))
 
     return {
         "anchor": clamp(anchor, 74, 86),
         "support": clamp(support, 72, 84),
-        "lift": clamp(lift, 76, 89),
-        "resolve": clamp(resolve, 71, 83),
-        "accent": clamp(accent, 84, 97),
+        "answer": clamp(answer, 71, 83),
         "pivot": clamp(pivot, 74, 88),
-        "payoff": clamp(payoff, 72, 86),
+        "lift": clamp(lift, 76, 90),
+        "apex": clamp(apex, 79, 93),
+        "resolve": clamp(resolve, 71, 84),
+        "payoff": clamp(payoff, 72, 87),
+        "accent": clamp(accent, 84, 97),
+        "final": clamp(final, 85, 99),
     }
-
 
 def build_hook_rhythm_lock(drop_variant: int, phase: int):
     """
@@ -856,39 +865,42 @@ def build_hook_rhythm_lock(drop_variant: int, phase: int):
 
 def build_pitch_sequence(signature, slot: int, phase: int, drop_variant: int):
     """
-    V3.0:
-    Protect core identity harder.
-    Every bar remains a variant of the same recognisable gesture:
-    anchor/support -> pivot/lift -> payoff/resolve.
+    V3.1:
+    Give each bar a clearer role inside the 4-bar hook loop.
+    bar 1 = statement
+    bar 2 = answer / contrast
+    bar 3 = climb / anticipation
+    bar 4 = dedicated payoff handled elsewhere
     """
     if slot == 0:
-        if phase <= 1:
+        if phase == 0:
             return [signature["anchor"], signature["support"], signature["anchor"], signature["lift"]]
-        return [signature["anchor"], signature["support"], signature["anchor"], signature["pivot"], signature["lift"]]
+        if phase == 1:
+            return [signature["anchor"], signature["support"], signature["anchor"], signature["pivot"], signature["lift"]]
+        return [signature["anchor"], signature["support"], signature["anchor"], signature["pivot"], signature["lift"], signature["apex"]]
 
     if slot == 1:
         if phase == 0:
-            return [signature["anchor"], signature["support"], signature["pivot"], signature["lift"]]
+            return [signature["answer"], signature["support"], signature["pivot"], signature["anchor"]]
         if phase == 1:
-            return [signature["anchor"], signature["support"], signature["anchor"], signature["pivot"], signature["lift"]]
-        return [signature["anchor"], signature["support"], signature["pivot"], signature["anchor"], signature["lift"], signature["lift"]]
+            return [signature["answer"], signature["support"], signature["pivot"], signature["anchor"], signature["lift"]]
+        return [signature["answer"], signature["support"], signature["pivot"], signature["anchor"], signature["lift"], signature["pivot"]]
 
     if slot == 2:
         if phase == 0:
-            return [signature["anchor"], signature["support"], signature["lift"], signature["anchor"]]
+            return [signature["support"], signature["anchor"], signature["pivot"], signature["lift"]]
         if phase == 1:
-            return [signature["anchor"], signature["support"], signature["lift"], signature["pivot"], signature["anchor"]]
-        return [signature["anchor"], signature["support"], signature["lift"], signature["pivot"], signature["anchor"], signature["lift"]]
+            return [signature["support"], signature["anchor"], signature["pivot"], signature["lift"], signature["apex"]]
+        return [signature["support"], signature["anchor"], signature["pivot"], signature["lift"], signature["apex"], signature["lift"]]
 
     if drop_variant == 2 and phase >= 2:
-        return [signature["support"], signature["anchor"], signature["pivot"], signature["lift"], signature["payoff"], signature["accent"]]
+        return [signature["answer"], signature["anchor"], signature["pivot"], signature["lift"], signature["apex"], signature["final"]]
 
     if phase == 0:
-        return [signature["support"], signature["anchor"], signature["pivot"], signature["payoff"]]
+        return [signature["answer"], signature["anchor"], signature["pivot"], signature["payoff"]]
     if phase == 1:
-        return [signature["support"], signature["anchor"], signature["pivot"], signature["lift"], signature["payoff"]]
-    return [signature["support"], signature["anchor"], signature["pivot"], signature["lift"], signature["payoff"], signature["resolve"]]
-
+        return [signature["answer"], signature["anchor"], signature["pivot"], signature["lift"], signature["payoff"]]
+    return [signature["answer"], signature["anchor"], signature["pivot"], signature["lift"], signature["payoff"], signature["resolve"]]
 
 def drop_phase_for_bar(local_bar: int, total_bars: int):
     if total_bars >= 32:
@@ -912,39 +924,110 @@ def drop_phase_for_bar(local_bar: int, total_bars: int):
 
 def build_bar4_payoff_phrase(signature, drop_variant: int, phase: int):
     """
-    Stronger phrase-end release.
-    The final bar should feel like payoff, not just loop continuation.
+    V3.1:
+    Phrase-end release must land harder.
+    The last bar now aims for a more obvious lift-then-slam contour.
     """
     if drop_variant == 2:
         if phase >= 2:
             return [
-                (0.00, 0.50, signature["support"]),
+                (0.00, 0.50, signature["answer"]),
                 (1.00, 0.50, signature["anchor"]),
                 (2.00, 0.50, signature["pivot"]),
                 (2.75, 0.25, signature["lift"]),
-                (3.00, 0.75, signature["accent"]),
+                (3.00, 0.50, signature["accent"]),
+                (3.50, 0.45, signature["final"]),
             ]
         return [
-            (0.00, 0.50, signature["support"]),
+            (0.00, 0.50, signature["answer"]),
             (1.00, 0.50, signature["anchor"]),
             (2.00, 0.50, signature["pivot"]),
-            (3.00, 0.75, signature["payoff"]),
+            (3.00, 0.50, signature["payoff"]),
+            (3.50, 0.40, signature["accent"]),
         ]
 
     if phase >= 2:
         return [
-            (0.00, 0.50, signature["support"]),
+            (0.00, 0.50, signature["answer"]),
             (1.00, 0.50, signature["anchor"]),
             (2.00, 0.50, signature["pivot"]),
-            (3.00, 0.75, signature["payoff"]),
+            (2.75, 0.25, signature["lift"]),
+            (3.00, 0.50, signature["payoff"]),
+            (3.50, 0.40, signature["accent"]),
         ]
     return [
-        (0.00, 0.50, signature["support"]),
+        (0.00, 0.50, signature["answer"]),
         (1.00, 0.50, signature["anchor"]),
         (2.00, 0.50, signature["pivot"]),
-        (3.00, 0.75, signature["resolve"]),
+        (3.00, 0.55, signature["resolve"]),
+        (3.50, 0.35, signature["payoff"]),
     ]
 
+
+def build_drop2_arrival_phrase(signature, phase: int, bar_index: int):
+    """
+    V3.1:
+    The first two bars of Drop 2 should feel like an event.
+    Start with immediate recognisable authority, then answer with lift.
+    """
+    if bar_index == 0:
+        if phase >= 2:
+            return [
+                (0.00, 0.75, signature["anchor"]),
+                (1.00, 0.50, signature["pivot"]),
+                (2.00, 0.50, signature["lift"]),
+                (2.75, 0.25, signature["apex"]),
+                (3.00, 0.50, signature["accent"]),
+                (3.50, 0.40, signature["final"]),
+            ]
+        return [
+            (0.00, 0.75, signature["anchor"]),
+            (1.00, 0.50, signature["pivot"]),
+            (2.00, 0.50, signature["lift"]),
+            (3.00, 0.50, signature["accent"]),
+            (3.50, 0.40, signature["payoff"]),
+        ]
+
+    if phase >= 2:
+        return [
+            (0.00, 0.50, signature["answer"]),
+            (1.00, 0.50, signature["anchor"]),
+            (1.75, 0.25, signature["pivot"]),
+            (2.00, 0.50, signature["lift"]),
+            (2.75, 0.25, signature["apex"]),
+            (3.00, 0.50, signature["payoff"]),
+            (3.50, 0.40, signature["accent"]),
+        ]
+    return [
+        (0.00, 0.50, signature["answer"]),
+        (1.00, 0.50, signature["anchor"]),
+        (2.00, 0.50, signature["pivot"]),
+        (3.00, 0.50, signature["lift"]),
+        (3.50, 0.40, signature["payoff"]),
+    ]
+
+
+def build_breakdown_recall_blueprint(root: str, chords):
+    signature = build_signature_hook_cell(root, chords[0], chords[1])
+    return {
+        0: [
+            (0.00, 1.50, signature["anchor"] - 12),
+            (2.50, 1.00, signature["support"] - 12),
+        ],
+        1: [
+            (0.50, 1.00, signature["answer"] - 12),
+            (2.75, 1.25, signature["lift"] - 12),
+        ],
+        2: [
+            (0.00, 1.00, signature["support"] - 12),
+            (2.00, 0.90, signature["pivot"] - 12),
+            (3.25, 0.50, signature["lift"] - 12),
+        ],
+        3: [
+            (0.00, 1.00, signature["answer"] - 12),
+            (2.50, 1.50, signature["resolve"] - 12),
+        ],
+    }
 
 def build_breakdown_recall_blueprint(root: str, chords):
     signature = build_signature_hook_cell(root, chords[0], chords[1])
@@ -984,11 +1067,11 @@ def adapt_note_to_bar(note: int, root: str, chord, section_kind: str):
 
 def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int, drop_variant: int):
     """
-    V3.0 lead rules:
-    - stronger signature interval identity
-    - explicit bar-4 payoff
-    - Drop 2 gets a harder first two bars
-    - variation expands the hook instead of drifting away from it
+    V3.1 lead rules:
+    - stronger signature gesture
+    - clearer statement / answer / climb / payoff across each 4-bar loop
+    - Drop 2 gets a more event-like first two bars
+    - bar-4 release is pushed harder
     """
     signature = build_signature_hook_cell(root, chords[0], chords[1])
     events = []
@@ -999,23 +1082,55 @@ def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_t
         bar_start = bar_tick(absolute_start_bar + i)
         phase = drop_phase_for_bar(i, bars_to_write)
 
+        if drop_variant == 2 and i < 2:
+            phrase = build_drop2_arrival_phrase(signature, phase, i)
+            note_count = len(phrase)
+            for idx in range(note_count):
+                beat_pos, beat_len, raw_note = phrase[idx]
+                note = adapt_note_to_bar(raw_note, root, chord, "drop")
+                note = clamp(note, 74, 98)
+
+                note_velocity = velocity
+                if idx == 0:
+                    note_velocity = clamp(note_velocity + 8, 1, 124)
+                elif idx >= note_count - 2:
+                    note_velocity = clamp(note_velocity + 6, 1, 124)
+                else:
+                    note_velocity = clamp(note_velocity + 3, 1, 124)
+
+                length_multiplier = 0.86 if idx < note_count - 1 else 0.92
+                add_length = tick(beat_len * length_multiplier)
+                events.append((bar_start + tick(beat_pos), note, add_length, note_velocity))
+
+                if idx == 0:
+                    octave_note = clamp(note - 12, 62, 84)
+                    events.append(
+                        (
+                            bar_start + tick(beat_pos),
+                            octave_note,
+                            tick(max(0.25, beat_len * 0.60)),
+                            clamp(note_velocity - 12, 56, 116),
+                        )
+                    )
+            continue
+
         if local_slot == 3:
             phrase = build_bar4_payoff_phrase(signature, drop_variant, phase)
             note_count = len(phrase)
             for idx in range(note_count):
                 beat_pos, beat_len, raw_note = phrase[idx]
                 note = adapt_note_to_bar(raw_note, root, chord, "drop")
-                note = clamp(note, 74, 96)
+                note = clamp(note, 74, 98)
 
                 note_velocity = velocity
                 if idx >= note_count - 2:
-                    note_velocity = clamp(note_velocity + 5, 1, 124)
+                    note_velocity = clamp(note_velocity + 6, 1, 124)
                 if drop_variant == 2 and phase >= 2 and idx == note_count - 1:
                     note_velocity = clamp(note_velocity + 6, 1, 124)
 
                 length_multiplier = 0.84
                 if idx == note_count - 1:
-                    length_multiplier = 0.92
+                    length_multiplier = 0.94
 
                 add_length = tick(beat_len * length_multiplier)
                 events.append((bar_start + tick(beat_pos), note, add_length, note_velocity))
@@ -1029,33 +1144,28 @@ def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_t
             beat_pos, beat_len = rhythm[idx]
             raw_note = notes[idx]
             note = adapt_note_to_bar(raw_note, root, chord, "drop")
-            note = clamp(note, 74, 95)
+            note = clamp(note, 74, 96)
 
-            length_multiplier = 0.84 if phase < 2 else 0.78
-            if phase == 3 and idx == note_count - 1:
+            length_multiplier = 0.84 if phase < 2 else 0.80
+            if local_slot == 1:
+                length_multiplier = 0.82 if phase < 2 else 0.78
+            if local_slot == 2 and idx >= max(0, note_count - 2):
                 length_multiplier = 0.88
+            if phase == 3 and idx == note_count - 1:
+                length_multiplier = 0.90
 
             note_velocity = velocity
-            if phase == 2 and idx in (2, 3):
+            if local_slot == 1 and idx == 0:
                 note_velocity = clamp(note_velocity + 2, 1, 124)
-            if phase == 3 and idx >= max(0, note_count - 2):
+            if local_slot == 2 and idx >= max(0, note_count - 2):
                 note_velocity = clamp(note_velocity + 4, 1, 124)
-
-            if drop_variant == 2 and i < 2:
-                if idx == 0:
-                    note_velocity = clamp(note_velocity + 7, 1, 124)
-                if idx == note_count - 1:
-                    note_velocity = clamp(note_velocity + 5, 1, 124)
+            if phase == 3 and idx >= max(0, note_count - 2):
+                note_velocity = clamp(note_velocity + 5, 1, 124)
 
             add_length = tick(beat_len * length_multiplier)
             events.append((bar_start + tick(beat_pos), note, add_length, note_velocity))
 
-            if drop_variant == 2 and i < 2 and idx == 0:
-                octave_note = clamp(note - 12, 62, 83)
-                events.append((bar_start + tick(beat_pos), octave_note, tick(max(0.25, beat_len * 0.58)), clamp(note_velocity - 10, 56, 116)))
-
     return events
-
 
 def generate_build_lead_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int, build_variant: int):
     signature = build_signature_hook_cell(root, chords[0], chords[1])
@@ -1070,16 +1180,16 @@ def generate_build_lead_events(root: str, chords, absolute_start_bar: int, bars_
         if build_variant == 2:
             phrase_map = {
                 0: [(0.00, 0.75, signature["anchor"]), (2.00, 0.75, signature["support"])],
-                1: [(0.50, 0.75, signature["anchor"]), (2.50, 0.75, signature["lift"])],
+                1: [(0.50, 0.75, signature["answer"]), (2.50, 0.75, signature["lift"])],
                 2: [(0.00, 0.50, signature["support"]), (1.50, 0.50, signature["anchor"]), (3.00, 0.50, signature["pivot"])],
-                3: [(0.00, 0.75, signature["support"]), (2.00, 1.00, signature["lift"])],
+                3: [(0.00, 0.75, signature["answer"]), (2.00, 1.00, signature["lift"])],
             }
         else:
             phrase_map = {
                 0: [(0.00, 0.75, signature["anchor"]), (2.00, 0.75, signature["support"])],
-                1: [(0.50, 0.75, signature["anchor"]), (2.50, 0.75, signature["lift"])],
+                1: [(0.50, 0.75, signature["answer"]), (2.50, 0.75, signature["lift"])],
                 2: [(0.00, 0.75, signature["support"]), (2.00, 0.75, signature["anchor"])],
-                3: [(0.00, 0.75, signature["support"]), (2.50, 1.00, signature["lift"])],
+                3: [(0.00, 0.75, signature["answer"]), (2.50, 1.00, signature["lift"])],
             }
 
         phrase = phrase_map[local_slot][:]
@@ -1088,21 +1198,25 @@ def generate_build_lead_events(root: str, chords, absolute_start_bar: int, bars_
             if i == bars_to_write - 3:
                 phrase.append((3.25, 0.50, signature["pivot"]))
             if i == bars_to_write - 2:
-                phrase.append((3.50, 0.25, signature["lift"]))
+                phrase.append((3.25, 0.25, signature["lift"]))
+                phrase.append((3.50, 0.25, signature["apex"]))
             if i == bars_to_write - 1:
                 phrase = [
-                    (0.00, 0.50, signature["support"]),
+                    (0.00, 0.50, signature["answer"]),
                     (1.00, 0.50, signature["anchor"]),
                     (2.00, 0.50, signature["pivot"]),
+                    (3.00, 0.35, signature["lift"]),
                 ]
 
         for beat_pos, beat_len, raw_note in phrase:
             note = adapt_note_to_bar(raw_note, root, chord, "build")
-            note = clamp(note, 72, 93)
-            events.append((bar_start + tick(beat_pos), note, tick(beat_len * 0.9), clamp(velocity - 6, 50, 118)))
+            note = clamp(note, 72, 95)
+            vel = clamp(velocity - 6, 50, 118)
+            if last_four_bars and beat_pos >= 3.0:
+                vel = clamp(vel + 4, 50, 122)
+            events.append((bar_start + tick(beat_pos), note, tick(beat_len * 0.9), vel))
 
     return events
-
 
 def generate_breakdown_recall_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int):
     blueprint = build_breakdown_recall_blueprint(root, chords)
@@ -1631,7 +1745,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
 
         notes_path = td / "production_notes.txt"
         notes_path.write_text(
-            "Dream Trance MIDI Generator V3.0.1\n\n"
+            "Dream Trance MIDI Generator V3.1\n\n"
             + "BPM: " + str(bpm) + "\n"
             + "Key: " + key_root + " minor\n"
             + "Progression: " + progression + "\n"
@@ -1672,12 +1786,12 @@ def generate(
     EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     request_id = uuid4().hex
-    out_zip = EXPORTS_DIR / ("dream_trance_midi_pack_v3_0_1_" + request_id + ".zip")
+    out_zip = EXPORTS_DIR / ("dream_trance_midi_pack_v3_1_" + request_id + ".zip")
 
     generate_pack(bpm, key_root, progression, arrangement, energy, vocalist, out_zip)
 
     return FileResponse(
         path=out_zip,
-        filename="dream_trance_midi_pack_v3_0_1.zip",
+        filename="dream_trance_midi_pack_v3_1.zip",
         media_type="application/zip"
     )
