@@ -16,7 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 EXPORTS_DIR = BASE_DIR / "exports"
 
-app = FastAPI(title="Dream Trance MIDI Generator V3.8")
+app = FastAPI(title="Dream Trance MIDI Generator V3.9")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
@@ -102,7 +102,7 @@ HTML = """
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dream Trance MIDI Generator V3.8</title>
+  <title>Dream Trance MIDI Generator V3.9</title>
   <style>
     :root {
       --bg: #061121;
@@ -455,10 +455,10 @@ HTML = """
   <div class="shell">
     <section class="hero">
       <div class="hero-card">
-        <div class="eyebrow">Dream Trance MIDI Generator • V3.8 Controlled Variation Engine</div>
-        <h1>Push the generator toward motif-driven trance writing with evolving hook families, phrase-role-aware drops, breakdown memory, stronger countermelody, and a more decisive final Drop 2 climax.</h1>
+        <div class="eyebrow">Dream Trance MIDI Generator • V3.9 Full Song Blueprint Engine</div>
+        <h1>Generate genuinely different full trance songs per render using a Song Blueprint Engine that varies hook archetype, phrase density, melodic language, breakdown behaviour, and climax strategy.</h1>
         <p class="sub">
-          V3.8 preserves the V3.7 composition logic while fixing deterministic build lead output through controlled phrase, octave, rhythm, and hook-anchor variation.
+          V3.9 adds a per-song blueprint so each export can generate a distinct trance composition identity while keeping uplifting / melodic / vocal trance structure intact.
         </p>
         <div class="pill">Exports aligned full-length stems + combined arrangement MIDI</div>
       </div>
@@ -529,7 +529,7 @@ HTML = """
 
       <aside class="sidebar">
         <div class="tip">
-          <h3>What changed in V3.5</h3>
+          <h3>What changed in V3.9</h3>
           <ul>
             <li>Lead generation now writes around a track identity blueprint plus a motif family with one enforced hero note per 4-bar cycle.</li>
             <li>Bar-4 payoff phrases now lock to a dominant hero note instead of letting all notes compete equally.</li>
@@ -920,7 +920,104 @@ def build_signature_hook_cell(root: str, first_chord, second_chord):
     }
 
 
-def choose_track_contour(arrangement: str, energy: str) -> str:
+def generate_song_blueprint(rng, arrangement: str, energy: str, vocalist: str):
+    arrangement_l = arrangement.lower()
+    hook_choices = [
+        "ascending_anthem",
+        "emotional_wave",
+        "delayed_peak",
+        "call_response",
+        "octave_lift",
+        "euphoric_leap",
+    ]
+    density_choices = ["sparse", "balanced", "busy"]
+    melodic_choices = ["stepwise", "thirds", "leap", "octave_focus"]
+    energy_curve_choices = ["late_peak", "early_peak", "double_climax", "long_build"]
+    drop_choices = ["standard", "anthem", "festival", "uplifting_peak"]
+    breakdown_choices = ["piano_led", "pad_space", "vocal_focus", "ambient"]
+
+    hook_weights = {
+        "ascending_anthem": 1.0,
+        "emotional_wave": 1.0,
+        "delayed_peak": 0.9,
+        "call_response": 0.9,
+        "octave_lift": 0.9,
+        "euphoric_leap": 0.8,
+    }
+    if energy == "High":
+        hook_weights["euphoric_leap"] += 0.7
+        hook_weights["octave_lift"] += 0.5
+    if "breakdown" in arrangement_l:
+        hook_weights["delayed_peak"] += 0.7
+        hook_weights["emotional_wave"] += 0.4
+    if arrangement == "Radio/Compact":
+        hook_weights["call_response"] += 0.6
+        hook_weights["ascending_anthem"] += 0.4
+
+    density_weights = {"sparse": 0.8, "balanced": 1.1, "busy": 0.8}
+    if vocalist == "Female Airy":
+        density_weights["sparse"] += 0.4
+    if energy == "High":
+        density_weights["busy"] += 0.5
+    if arrangement == "Radio/Compact":
+        density_weights["balanced"] += 0.4
+
+    melodic_weights = {"stepwise": 1.0, "thirds": 0.95, "leap": 0.85, "octave_focus": 0.75}
+    if energy == "High":
+        melodic_weights["leap"] += 0.4
+        melodic_weights["octave_focus"] += 0.3
+    if "breakdown" in arrangement_l:
+        melodic_weights["stepwise"] += 0.4
+        melodic_weights["thirds"] += 0.2
+
+    curve_weights = {"late_peak": 1.0, "early_peak": 0.8, "double_climax": 0.7, "long_build": 0.8}
+    if energy == "High":
+        curve_weights["double_climax"] += 0.4
+    if arrangement == "Breakdown Focused":
+        curve_weights["long_build"] += 0.6
+        curve_weights["late_peak"] += 0.4
+    if arrangement == "Radio/Compact":
+        curve_weights["early_peak"] += 0.5
+
+    drop_weights = {"standard": 0.8, "anthem": 1.0, "festival": 0.9, "uplifting_peak": 0.9}
+    if energy == "High":
+        drop_weights["festival"] += 0.6
+        drop_weights["uplifting_peak"] += 0.4
+    if arrangement == "Radio/Compact":
+        drop_weights["anthem"] += 0.4
+
+    breakdown_weights = {"piano_led": 0.9, "pad_space": 0.8, "vocal_focus": 0.8, "ambient": 0.7}
+    if arrangement == "Breakdown Focused":
+        breakdown_weights["piano_led"] += 0.5
+        breakdown_weights["ambient"] += 0.5
+    if vocalist != "Male Tenor":
+        breakdown_weights["vocal_focus"] += 0.4
+
+    def weighted_pick(weight_map):
+        total = sum(weight_map.values())
+        pick = rng.random() * total
+        run = 0.0
+        for key, weight in weight_map.items():
+            run += weight
+            if pick <= run:
+                return key
+        return next(iter(weight_map))
+
+    return {
+        "hook_archetype": weighted_pick(hook_weights),
+        "phrase_density": weighted_pick(density_weights),
+        "melodic_style": weighted_pick(melodic_weights),
+        "energy_curve": weighted_pick(curve_weights),
+        "drop_intensity": weighted_pick(drop_weights),
+        "breakdown_style": weighted_pick(breakdown_weights),
+    }
+
+
+def choose_track_contour(arrangement: str, energy: str, song_blueprint=None) -> str:
+    if song_blueprint and song_blueprint.get("energy_curve") in ("late_peak", "early_peak"):
+        return song_blueprint["energy_curve"]
+    if song_blueprint and song_blueprint.get("energy_curve") == "long_build":
+        return "arc"
     if "Breakdown" in arrangement:
         return "arc"
     if energy == "High":
@@ -930,9 +1027,70 @@ def choose_track_contour(arrangement: str, energy: str) -> str:
     return "late_peak"
 
 
-def build_track_identity_blueprint(root: str, chords, arrangement: str, energy: str):
-    hook_signature = build_signature_hook_cell(root, chords[0], chords[1])
-    contour_type = choose_track_contour(arrangement, energy)
+def apply_blueprint_to_hook_signature(hook_signature, song_blueprint):
+    sig = dict(hook_signature)
+    archetype = song_blueprint.get("hook_archetype", "ascending_anthem")
+    style = song_blueprint.get("melodic_style", "stepwise")
+
+    if archetype == "ascending_anthem":
+        sig["lift"] = clamp(max(sig["lift"], sig["anchor"] + 3), 76, 93)
+        sig["apex"] = clamp(max(sig["apex"], sig["lift"] + 2), 79, 96)
+        sig["final"] = clamp(max(sig["final"], sig["apex"] + 1), 84, 100)
+    elif archetype == "emotional_wave":
+        sig["answer"] = clamp(sig["support"] - 2, 71, 84)
+        sig["pivot"] = clamp(sig["anchor"] + 2, 74, 88)
+        sig["lift"] = clamp(sig["pivot"] + 2, 76, 91)
+    elif archetype == "delayed_peak":
+        sig["lift"] = clamp(sig["lift"] - 1, 75, 90)
+        sig["apex"] = clamp(sig["apex"] + 1, 80, 96)
+        sig["terminal"] = clamp(max(sig["terminal"], sig["final"] + 1), 86, 101)
+    elif archetype == "call_response":
+        sig["answer"] = clamp(sig["answer"] + 2, 72, 86)
+        sig["payoff"] = clamp(sig["anchor"] + 7, 72, 89)
+        sig["dominant"] = clamp(max(sig["anchor"], sig["payoff"]), 78, 92)
+    elif archetype == "octave_lift":
+        sig["lift"] = clamp(sig["lift"] + 2, 78, 93)
+        sig["accent"] = clamp(max(sig["accent"], sig["lift"] + 4), 84, 99)
+        sig["terminal"] = clamp(max(sig["terminal"], sig["accent"] + 1), 86, 101)
+    elif archetype == "euphoric_leap":
+        sig["pivot"] = clamp(sig["pivot"] + 2, 75, 90)
+        sig["leap"] = clamp(max(sig["leap"], sig["pivot"] + 7), 84, 100)
+        sig["final"] = clamp(max(sig["final"], sig["leap"] - 2), 85, 100)
+
+    if style == "stepwise":
+        sig["passing"] = nearest_note_from_pool(sig["anchor"] + 2, range(sig["anchor"] - 2, sig["lift"] + 3))
+        sig["tension"] = clamp(sig["lift"] - 1, 74, 89)
+    elif style == "thirds":
+        sig["support"] = clamp(sig["anchor"] - 3, 72, 85)
+        sig["lift"] = clamp(sig["anchor"] + 3, 76, 92)
+        sig["apex"] = clamp(sig["lift"] + 3, 79, 96)
+    elif style == "leap":
+        sig["leap"] = clamp(max(sig["leap"], sig["anchor"] + 7), 84, 100)
+        sig["accent"] = clamp(max(sig["accent"], sig["leap"] - 1), 84, 99)
+    elif style == "octave_focus":
+        sig["lift"] = clamp(max(sig["lift"], sig["anchor"] + 12), 82, 94)
+        sig["accent"] = clamp(max(sig["accent"], sig["lift"]), 84, 100)
+        sig["dominant"] = clamp(max(sig["dominant"], sig["lift"]), 80, 94)
+
+    sig["dominant"] = clamp(max(sig["anchor"], sig["lift"]), 78, 94)
+    return sig
+
+
+def build_track_identity_blueprint(root: str, chords, arrangement: str, energy: str, song_blueprint=None):
+    if song_blueprint is None:
+        song_blueprint = {
+            "hook_archetype": "ascending_anthem",
+            "phrase_density": "balanced",
+            "melodic_style": "stepwise",
+            "energy_curve": "late_peak",
+            "drop_intensity": "anthem",
+            "breakdown_style": "piano_led",
+        }
+    hook_signature = apply_blueprint_to_hook_signature(
+        build_signature_hook_cell(root, chords[0], chords[1]),
+        song_blueprint,
+    )
+    contour_type = choose_track_contour(arrangement, energy, song_blueprint=song_blueprint)
 
     if contour_type == "late_peak":
         hero_note = clamp(max(hook_signature["accent"], hook_signature["final"]), 86, 100)
@@ -947,8 +1105,22 @@ def build_track_identity_blueprint(root: str, chords, arrangement: str, energy: 
         drop2_apex_note = clamp(max(hero_note + 1, hook_signature["terminal"]), 87, 101)
         lead_register_peak = 99
 
-    leap_candidates = [7, 8, 9, 12]
-    signature_leap_interval = 9 if energy == "High" else 7
+    melodic_style = song_blueprint.get("melodic_style", "stepwise")
+    if melodic_style == "stepwise":
+        leap_candidates = [2, 3, 5, 7]
+        signature_leap_interval = 5 if energy != "High" else 7
+    elif melodic_style == "thirds":
+        leap_candidates = [3, 4, 7, 9]
+        signature_leap_interval = 7
+    elif melodic_style == "octave_focus":
+        leap_candidates = [5, 7, 12]
+        signature_leap_interval = 12
+    else:
+        leap_candidates = [7, 8, 9, 12]
+        signature_leap_interval = 9 if energy == "High" else 7
+
+    density_map = {"sparse": 0.82, "balanced": 1.0, "busy": 1.18}
+    build_density_map = {"sparse": 0.86, "balanced": 1.0, "busy": 1.12}
 
     return {
         "hook_signature": hook_signature,
@@ -962,6 +1134,9 @@ def build_track_identity_blueprint(root: str, chords, arrangement: str, energy: 
         "lead_register_base": 74,
         "lead_register_peak": lead_register_peak,
         "track_contour_type": contour_type,
+        "song_blueprint": dict(song_blueprint),
+        "phrase_density_factor": density_map.get(song_blueprint.get("phrase_density", "balanced"), 1.0),
+        "build_density_factor": build_density_map.get(song_blueprint.get("phrase_density", "balanced"), 1.0),
     }
 
 
@@ -1186,6 +1361,7 @@ def derive_climax_from_cell(cell, identity_blueprint):
 
 def build_motif_family(identity_blueprint, root: str, chords, rng):
     sig = identity_blueprint["hook_signature"]
+    song_blueprint = identity_blueprint.get("song_blueprint", {})
     scale_pool = scale_notes_in_range(root, 72, 96)
     chord_pool_a = chord_tones_in_range(chords[0], 72, 92)
     chord_pool_b = chord_tones_in_range(chords[1 % len(chords)], 72, 96)
@@ -1210,6 +1386,26 @@ def build_motif_family(identity_blueprint, root: str, chords, rng):
         clamp(nearest_note_from_pool(n, scale_pool), 72, 94)
         for n in base_cell
     ]
+
+    melodic_style = song_blueprint.get("melodic_style", "stepwise")
+    hook_archetype = song_blueprint.get("hook_archetype", "ascending_anthem")
+
+    if melodic_style == "thirds":
+        anchor = base_cell[0]
+        base_cell = [anchor, clamp(anchor + 3, 72, 95), clamp(anchor + 7, 72, 96)]
+    elif melodic_style == "leap":
+        anchor = base_cell[0]
+        base_cell = [anchor, clamp(anchor + rng.choice([5, 7]), 72, 96), clamp(anchor + rng.choice([9, 12]), 74, 98)]
+    elif melodic_style == "octave_focus":
+        anchor = base_cell[0]
+        base_cell = [anchor, clamp(anchor + 12, 84, 96), clamp(anchor + rng.choice([7, 12]), 80, 98)]
+
+    if hook_archetype == "call_response":
+        base_cell = [base_cell[0], clamp(base_cell[0] - 2, 72, 92), clamp(base_cell[0] + 5, 72, 96)]
+    elif hook_archetype == "emotional_wave":
+        base_cell = [base_cell[0], clamp(base_cell[0] + 2, 72, 94), clamp(base_cell[0] - 1, 72, 94)]
+    elif hook_archetype == "euphoric_leap":
+        base_cell[-1] = clamp(max(base_cell[-1], base_cell[0] + 7), 79, 98)
 
     statement = derive_statement_from_cell(base_cell, identity_blueprint)
     variation = derive_variation_from_cell(base_cell, identity_blueprint)
@@ -1239,9 +1435,12 @@ def build_motif_family(identity_blueprint, root: str, chords, rng):
     return family
 
 
-def plan_drop_phrase_roles(section_name: str, bars: int, rng=None):
+def plan_drop_phrase_roles(section_name: str, bars: int, rng=None, song_blueprint=None):
     cycles = max(1, (bars + 3) // 4)
     drop2 = "drop 2" in section_name.lower()
+
+    hook_archetype = (song_blueprint or {}).get("hook_archetype", "ascending_anthem")
+    energy_curve = (song_blueprint or {}).get("energy_curve", "late_peak")
 
     if drop2:
         templates = [
@@ -1249,12 +1448,20 @@ def plan_drop_phrase_roles(section_name: str, bars: int, rng=None):
             ["statement", "variation", "lift", "variation", "lift", "statement", "lift", "climax"],
             ["variation", "statement", "lift", "variation", "lift", "lift", "statement", "climax"],
         ]
+        if energy_curve == "double_climax":
+            templates.append(["statement", "lift", "climax", "variation", "lift", "statement", "lift", "climax"])
+        if hook_archetype == "call_response":
+            templates.append(["statement", "variation", "statement", "variation", "lift", "statement", "variation", "climax"])
     else:
         templates = [
             ["statement", "variation", "statement", "lift", "variation", "lift", "statement", "lift"],
             ["statement", "statement", "variation", "lift", "variation", "statement", "lift", "lift"],
             ["statement", "variation", "lift", "statement", "variation", "lift", "statement", "lift"],
         ]
+        if energy_curve == "early_peak":
+            templates.append(["lift", "variation", "statement", "variation", "lift", "statement", "variation", "lift"])
+        if hook_archetype == "delayed_peak":
+            templates.append(["statement", "statement", "variation", "statement", "variation", "lift", "statement", "lift"])
 
     template = choose_weighted(rng, templates) if rng else templates[0]
     roles = []
@@ -1293,7 +1500,13 @@ def plan_final_climax_window(section_name: str, local_bar: int, total_bars: int)
 def evolve_hero_strategy(phrase_role: str, identity_blueprint, drop_variant: int, phase: int, rng=None):
     peak = identity_blueprint["lead_register_peak"]
     base = identity_blueprint["hero_note"]
+    song_blueprint = identity_blueprint.get("song_blueprint", {})
+    hook_archetype = song_blueprint.get("hook_archetype", "ascending_anthem")
     micro_shift = 0 if rng is None else rng.choice([0, 0, 1])
+    if hook_archetype == "octave_lift":
+        micro_shift += 1
+    elif hook_archetype == "delayed_peak" and phrase_role != "climax":
+        micro_shift -= 1
     if phrase_role == "statement":
         return {"hero_note": clamp(base + micro_shift, 78, peak), "hero_start": 3.00, "hold_beats": 0.92}
     if phrase_role == "variation":
@@ -1307,6 +1520,9 @@ def compose_motif_phrase(identity_blueprint, motif_family, phrase_role: str, dro
     rhythm_family = build_motif_rhythm_family(rng)
     rhythm = list(rhythm_family.get(phrase_role, rhythm_family["statement"]))
     note_pool = list(motif_family.get(phrase_role, motif_family["statement"]))
+    song_blueprint = identity_blueprint.get("song_blueprint", {})
+    density = song_blueprint.get("phrase_density", "balanced")
+    hook_archetype = song_blueprint.get("hook_archetype", "ascending_anthem")
 
     if phrase_role == "variation":
         if rng.random() < 0.60:
@@ -1317,7 +1533,16 @@ def compose_motif_phrase(identity_blueprint, motif_family, phrase_role: str, dro
     elif phrase_role == "climax" and rng.random() < 0.50:
         note_pool = rotate_fragment(note_pool, 1)
 
-    if rng.random() < 0.35:
+    if density == "sparse":
+        removeable = [i for i, item in enumerate(rhythm) if item[3] in ("passing", "support")]
+        if removeable:
+            for idx in sorted(removeable[-2:], reverse=True):
+                rhythm.pop(idx)
+    elif density == "busy" and phrase_role in ("variation", "lift", "climax") and rng.random() < 0.65:
+        insert_idx = min(len(rhythm) - 1, rng.randrange(max(1, len(rhythm) - 1)))
+        bar_offset, beat_pos, _, _ = rhythm[insert_idx]
+        rhythm.insert(insert_idx + 1, (bar_offset, min(3.6, beat_pos + 0.22), 0.14, "passing"))
+    elif rng.random() < 0.35:
         removeable = [i for i, item in enumerate(rhythm) if item[3] == "passing"]
         if removeable:
             rhythm.pop(removeable[-1])
@@ -1350,6 +1575,13 @@ def compose_motif_phrase(identity_blueprint, motif_family, phrase_role: str, dro
             raw = apply_register_shift(raw, register_shift + contour_bonus + rng.choice([0, 0, 1]), 74, 102)
         else:
             raw = apply_register_shift(raw, register_shift + min(contour_bonus, 2), 72, identity_blueprint["lead_register_peak"])
+
+        if hook_archetype == "call_response" and idx % 2 == 1:
+            raw = apply_register_shift(raw, -2, 72, identity_blueprint["lead_register_peak"])
+        elif hook_archetype == "octave_lift" and role in ("strong", "hero") and beat_pos >= 2.5:
+            raw = apply_register_shift(raw, 12 if phrase_role in ("lift", "climax") else 0, 72, 102)
+        elif hook_archetype == "emotional_wave" and role == "support":
+            raw = apply_register_shift(raw, -1 if idx % 2 else 1, 72, identity_blueprint["lead_register_peak"])
 
         phrase.append({
             "bar_offset": bar_offset,
@@ -1594,7 +1826,8 @@ def build_breakdown_emotion_map(identity_blueprint, root: str, chords):
 
 
 def generate_topline_candidate_from_identity(identity_blueprint, root: str, chord, vocal_min: int, vocal_max: int, global_bar: int, section_kind: str):
-    motif_family = identity_blueprint.get("motif_family") or build_motif_family(identity_blueprint, root, [chord, chord])
+    motif_family = identity_blueprint.get("motif_family") or build_motif_family(identity_blueprint, root, [chord, chord], random.Random(0))
+    song_blueprint = identity_blueprint.get("song_blueprint", {})
     pool = chord_tones_in_range(chord, vocal_min, vocal_max)
     scale_pool = scale_notes_in_range(root, vocal_min, vocal_max)
     slot = global_bar % 4
@@ -1618,6 +1851,12 @@ def generate_topline_candidate_from_identity(identity_blueprint, root: str, chor
         "lift": [(0.00, 0.56, "support"), (1.52, 0.42, "support"), (3.02, 0.92, "strong")],
         "climax": [(0.00, 0.66, "support"), (2.58, 0.32, "strong"), (3.06, 1.12, "hero")],
     }
+    if song_blueprint.get("phrase_density") == "sparse":
+        beat_templates["statement"] = [(0.00, 0.90, "strong"), (2.90, 1.00, "support")]
+        beat_templates["variation"] = [(0.60, 0.72, "support"), (2.92, 0.96, "strong")]
+    elif song_blueprint.get("phrase_density") == "busy":
+        beat_templates["lift"] = [(0.00, 0.46, "support"), (1.10, 0.30, "passing"), (1.90, 0.34, "support"), (3.02, 0.88, "strong")]
+        beat_templates["climax"] = [(0.00, 0.52, "support"), (1.55, 0.28, "strong"), (2.58, 0.28, "strong"), (3.06, 1.02, "hero")]
     out = []
     for idx, (beat_pos, beat_len, role) in enumerate(beat_templates[phrase_role]):
         raw_note = reduced[idx % len(reduced)] - 12
@@ -1962,9 +2201,11 @@ def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_t
     """
     events = []
     cycles = max(1, (bars_to_write + 3) // 4)
-    motif_family = build_motif_family(identity_blueprint, root, chords, rng)
-    identity_blueprint["motif_family"] = motif_family
-    phrase_roles = plan_drop_phrase_roles(section_name, bars_to_write, rng=rng)
+    motif_family = identity_blueprint.get("motif_family")
+    if motif_family is None:
+        motif_family = build_motif_family(identity_blueprint, root, chords, rng)
+        identity_blueprint["motif_family"] = motif_family
+    phrase_roles = plan_drop_phrase_roles(section_name, bars_to_write, rng=rng, song_blueprint=identity_blueprint.get("song_blueprint"))
 
     for cycle_index in range(cycles):
         cycle_start_local = cycle_index * 4
@@ -2007,6 +2248,13 @@ def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_t
             role = event["role"]
             role_velocity = phrase_role_velocity_offset(role)
             phrase_boost = {"statement": 0, "variation": 2, "lift": 5, "climax": 9}[event.get("phrase_role", phrase_role)]
+            drop_intensity = identity_blueprint.get("song_blueprint", {}).get("drop_intensity", "anthem")
+            if drop_intensity == "festival":
+                phrase_boost += 3
+            elif drop_intensity == "uplifting_peak" and role in ("strong", "hero"):
+                phrase_boost += 4
+            elif drop_intensity == "standard":
+                phrase_boost -= 1
             if window["in_final_4"]:
                 phrase_boost += 4
             note_velocity = clamp(velocity + role_velocity + phrase_boost, 1, 124)
@@ -2039,10 +2287,14 @@ def generate_build_lead_events(
         rng = random.Random()
 
     signature = identity_blueprint["hook_signature"]
+    song_blueprint = identity_blueprint.get("song_blueprint", {})
+    density = song_blueprint.get("phrase_density", "balanced")
+    hook_archetype = song_blueprint.get("hook_archetype", "ascending_anthem")
+    melodic_style = song_blueprint.get("melodic_style", "stepwise")
     signature_note = clamp(
         identity_blueprint.get("hero_note", max(signature["lift"], signature["accent"])),
         72,
-        98,
+        100,
     )
     events = []
 
@@ -2058,17 +2310,40 @@ def generate_build_lead_events(
             2: [(0.00, 0.55, signature["support"]), (1.50, 0.50, signature["anchor"]), (3.00, 0.52, signature["pivot"])],
             3: [(0.00, 0.72, signature["answer"]), (2.30, 0.62, signature["lift"])],
         }
+        if hook_archetype == "call_response":
+            phrase_map[1] = [(0.25, 0.60, signature["anchor"]), (1.75, 0.42, signature["answer"]), (3.00, 0.76, signature["lift"])]
+            phrase_map[3] = [(0.25, 0.58, signature["support"]), (1.90, 0.42, signature["payoff"]), (3.05, 0.72, signature_note)]
+        elif hook_archetype == "delayed_peak":
+            phrase_map[0] = [(0.00, 0.68, signature["anchor"]), (2.25, 0.58, signature["support"])]
+            phrase_map[2] = [(0.00, 0.48, signature["support"]), (1.75, 0.42, signature["pivot"]), (3.10, 0.58, signature["tension"])]
+        elif hook_archetype == "octave_lift":
+            phrase_map[1] = [(0.50, 0.58, signature["answer"]), (2.25, 0.46, signature["lift"]), (3.10, 0.46, signature["lift"] + 12)]
+        elif hook_archetype == "euphoric_leap":
+            phrase_map[2] = [(0.00, 0.44, signature["support"]), (1.50, 0.38, signature["pivot"]), (2.65, 0.38, signature["leap"]), (3.10, 0.54, signature["apex"])]
 
         phrase = phrase_map[local_slot][:]
 
         # V3.8 controlled phrase mutation:
         # preserve the build identity, but vary pitch behaviour slightly per render
-        if rng.random() < 0.6:
+        mutation_prob = 0.45 if density == "sparse" else 0.65 if density == "busy" else 0.55
+        if rng.random() < mutation_prob:
             mutated_phrase = []
             for beat_pos, beat_len, raw_note in phrase:
-                shift = rng.choice([-1, 0, 1])
+                if melodic_style == "stepwise":
+                    shift = rng.choice([-1, 0, 1])
+                elif melodic_style == "thirds":
+                    shift = rng.choice([-3, 0, 3])
+                elif melodic_style == "leap":
+                    shift = rng.choice([-5, 0, 5])
+                else:
+                    shift = rng.choice([0, 12, -12])
                 mutated_phrase.append((beat_pos, beat_len, raw_note + shift))
             phrase = mutated_phrase
+
+        if density == "sparse" and len(phrase) > 2:
+            phrase = [phrase[0], phrase[-1]]
+        elif density == "busy" and local_slot in (1, 2) and rng.random() < 0.7:
+            phrase.append((2.90, 0.22, signature["pivot"] if local_slot == 1 else signature["tension"]))
 
         if build_variant == 2 and local_slot in (2, 3):
             phrase.append((3.55, 0.18, signature["tension"] if local_slot == 2 else signature["apex"]))
@@ -2092,7 +2367,8 @@ def generate_build_lead_events(
 
             # V3.8 octave variation
             octave_offset = 0
-            if rng.random() < 0.3:
+            octave_prob = 0.18 if hook_archetype in ("emotional_wave", "delayed_peak") else 0.38
+            if rng.random() < octave_prob:
                 octave_offset = rng.choice([-12, 12])
             note = note + octave_offset
 
@@ -2138,6 +2414,7 @@ def generate_breakdown_recall_events(root: str, chords, absolute_start_bar: int,
     motif_family = identity_blueprint.get("motif_family") or build_motif_family(identity_blueprint, root, chords, rng or random.Random(0))
     identity_blueprint["motif_family"] = motif_family
     memory_map = build_breakdown_memory_map_v2(identity_blueprint, motif_family, root, chords)
+    breakdown_style = identity_blueprint.get("song_blueprint", {}).get("breakdown_style", "piano_led")
     events = []
 
     for i in range(bars_to_write):
@@ -2146,6 +2423,12 @@ def generate_breakdown_recall_events(root: str, chords, absolute_start_bar: int,
         bar_start = bar_tick(absolute_start_bar + i)
 
         phrase = memory_map[local_slot]["lead"][:]
+        if breakdown_style == "ambient":
+            phrase = phrase[:2]
+        elif breakdown_style == "vocal_focus":
+            phrase = [(bp + 0.25 if role != "hero" else bp, bl * 0.9, rn - 2, role) for bp, bl, rn, role in phrase]
+        elif breakdown_style == "pad_space":
+            phrase = [(bp, bl * 1.15, rn, role) for bp, bl, rn, role in phrase if role != "passing"]
         if local_slot == 3 and i >= max(0, bars_to_write - 8):
             phrase.append((3.56, 0.22, clamp(motif_family["breakdown_hint"][2], 60, 84), "passing"))
 
@@ -2563,9 +2846,11 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
     chords = progression_chords(key_root, progression)
     energy_factor = ENERGY_LEVELS[energy]
     vocal_min, vocal_max = VOCAL_RANGES[vocalist]
-    identity_blueprint = build_track_identity_blueprint(key_root, chords, arrangement, energy)
     rng, creativity_seed = create_rng()
+    song_blueprint = generate_song_blueprint(rng, arrangement, energy, vocalist)
+    identity_blueprint = build_track_identity_blueprint(key_root, chords, arrangement, energy, song_blueprint=song_blueprint)
     identity_blueprint["creativity_seed"] = creativity_seed
+    identity_blueprint["song_blueprint"] = dict(song_blueprint)
     motif_family = build_motif_family(identity_blueprint, key_root, chords, rng)
     identity_blueprint["motif_family"] = motif_family
 
@@ -2596,7 +2881,7 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
         build_variant = 2 if is_build_2 else 1
 
         if sec_kind == "drop":
-            phrase_roles = plan_drop_phrase_roles(sec["name"], sec["bars"], rng=rng)
+            phrase_roles = plan_drop_phrase_roles(sec["name"], sec["bars"], rng=rng, song_blueprint=song_blueprint)
             lead_events = generate_drop_lead_events(
                 key_root,
                 chords,
@@ -2775,14 +3060,14 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
 
         notes_path = td / "production_notes.txt"
         notes_path.write_text(
-            "Dream Trance MIDI Generator V3.8\n\n"
+            "Dream Trance MIDI Generator V3.9\n\n"
             + "BPM: " + str(bpm) + "\n"
             + "Key: " + key_root + " minor\n"
             + "Progression: " + progression + "\n"
             + "Arrangement: " + arrangement + "\n"
             + "Energy: " + energy + "\n"
             + "Vocalist: " + vocalist + "\n\n"
-            + "V3.8 Controlled Variation Engine:\n"
+            + "V3.9 Full Song Blueprint Engine:\n"
             + "- New track identity blueprint locks the track around one dominant hook concept\n"
             + "- One hero note is enforced inside every 4-bar drop cycle\n"
             + "- A deliberate signature leap is forced into the hook so phrases are more memorable\n"
@@ -2819,13 +3104,13 @@ def generate(
     EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     request_id = uuid4().hex
-    out_zip = EXPORTS_DIR / ("dream_trance_midi_pack_v3_8_" + request_id + ".zip")
+    out_zip = EXPORTS_DIR / ("dream_trance_midi_pack_v3_9_" + request_id + ".zip")
 
     generate_pack(bpm, key_root, progression, arrangement, energy, vocalist, out_zip)
 
     return FileResponse(
         path=out_zip,
-        filename="dream_trance_midi_pack_v3_8.zip",
+        filename="dream_trance_midi_pack_v3_9.zip",
         media_type="application/zip",
         background=BackgroundTask(lambda: out_zip.unlink(missing_ok=True))
     )
