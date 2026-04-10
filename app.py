@@ -17,6 +17,11 @@ EXPORTS_DIR = BASE_DIR / "exports"
 app = FastAPI(title="Dream Trance MIDI Generator V3.5")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+print("LOADED FILE:", __file__)
+for route in app.routes:
+    methods = getattr(route, "methods", None)
+    print("ROUTE:", route.path, methods)
+
 TICKS = 480
 BAR_TICKS = TICKS * 4
 
@@ -1189,7 +1194,7 @@ def build_breakdown_emotion_map(identity_blueprint, root: str, chords):
     }
 
 
-def generate_topline_candidate_from_identity(identity_blueprint, chord, vocal_min: int, vocal_max: int, global_bar: int, section_kind: str):
+def generate_topline_candidate_from_identity(identity_blueprint, root: str, chord, vocal_min: int, vocal_max: int, global_bar: int, section_kind: str):
     signature = identity_blueprint["hook_signature"]
     pool = chord_tones_in_range(chord, vocal_min, vocal_max)
     scale_pool = scale_notes_in_range(root, vocal_min, vocal_max)
@@ -1683,7 +1688,7 @@ def add_phrase_events_to_track(track_events, phrase_events):
 
 
 def generate_vocal_phrase(identity_blueprint, root: str, chord, vocal_min: int, vocal_max: int, bar_index: int, section_kind: str):
-    return generate_topline_candidate_from_identity(identity_blueprint, chord, vocal_min, vocal_max, bar_index, section_kind)
+    return generate_topline_candidate_from_identity(identity_blueprint, root, chord, vocal_min, vocal_max, bar_index, section_kind)
 
 def generate_breakdown_piano_phrase(root: str, chord, global_bar: int):
     pool = chord_tones_in_range(chord, 60, 79)
@@ -2296,7 +2301,6 @@ def generate_pack(bpm: int, key_root: str, progression: str, arrangement: str, e
                 p = td / (stem + ".mid")
                 zf.write(p, "stems/" + p.name)
 
-@app.post("/generate")
 def generate(
     bpm: Annotated[int, Form(..., ge=132, le=142)],
     key_root: Annotated[KeyRootType, Form(...)],
