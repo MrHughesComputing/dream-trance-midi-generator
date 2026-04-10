@@ -2022,7 +2022,21 @@ def generate_drop_lead_events(root: str, chords, absolute_start_bar: int, bars_t
     return events
 
 
-def generate_build_lead_events(root: str, chords, absolute_start_bar: int, bars_to_write: int, velocity: int, build_variant: int, identity_blueprint):
+def generate_build_lead_events(
+    root: str,
+    chords,
+    absolute_start_bar: int,
+    bars_to_write: int,
+    velocity: int,
+    build_variant: int,
+    identity_blueprint,
+    rng=None,
+):
+
+    if rng is None:
+        import random
+        rng = random.Random()
+
     signature = identity_blueprint["hook_signature"]
     events = []
 
