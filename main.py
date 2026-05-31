@@ -16566,6 +16566,20 @@ MELODY_LAB_HTML = """
             </select>
           </div>
           <div class="field">
+            <label for="length_mode">Length Mode</label>
+            <select id="length_mode" name="length_mode">
+              <option value="per_section" selected>Bars per section</option>
+              <option value="total_arrangement">Total arrangement</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="include_arpeggio_pluck">Arpeggio / Pluck</label>
+            <select id="include_arpeggio_pluck" name="include_arpeggio_pluck">
+              <option value="true" selected>Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="complexity">Complexity</label>
             <select id="complexity" name="complexity">__COMPLEXITIES__</select>
           </div>
@@ -16577,6 +16591,16 @@ MELODY_LAB_HTML = """
             <label for="creative_risk">Creative Risk</label>
             <select id="creative_risk" name="creative_risk">__RISKS__</select>
           </div>
+          <div class="field wide">
+            <label for="audition_depth">Hook Audition Depth</label>
+            <select id="audition_depth" name="audition_depth">
+              <option value="draft">Draft - 3 candidates</option>
+              <option value="balanced" selected>Balanced - 8 to 12 candidates</option>
+              <option value="deep">Deep search - 20 to 32 candidates</option>
+            </select>
+          </div>
+          <input type="hidden" id="regenerate_mode" name="regenerate_mode" value="full_option">
+          <input type="hidden" id="variation_seed" name="variation_seed" value="0">
         </div>
         <div class="actions">
           <button class="primary" type="submit">Generate 3 Options</button>
@@ -16602,12 +16626,12 @@ def select_options(values, default_value):
     )
 
 
-def melody_lab_page(result_html: str = "") -> str:
+def melody_lab_page(result_html: str = "", playback_json: str = "[]") -> str:
     key_options = "".join(
         f'<option value="{key}"{" selected" if key == "F# minor" else ""}>{key}</option>'
         for key in EDM_KEY_OPTIONS
     )
-    return (
+    page_html = (
         MELODY_LAB_HTML
         .replace("__APP_VERSION__", APP_VERSION)
         .replace("__KEYS__", key_options)
@@ -16620,9 +16644,126 @@ def melody_lab_page(result_html: str = "") -> str:
         .replace("__RISKS__", select_options(RISK_LABELS.items(), "club_ready"))
         .replace("__RESULT__", result_html)
     )
+    audition_script = f"""
+<script>
+window.ideaLabPlayback = {playback_json};
+let ideaAudioContext = null;
+let ideaStopHandles = [];
+function stopIdeaPlayback() {{
+  ideaStopHandles.forEach(handle => clearTimeout(handle));
+  ideaStopHandles = [];
+  if (ideaAudioContext) {{
+    ideaAudioContext.close();
+    ideaAudioContext = null;
+  }}
+}}
+function playTone(ctx, pitch, startTime, duration, gainValue) {{
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sawtooth";
+  osc.frequency.value = 440 * Math.pow(2, (pitch - 69) / 12);
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.exponentialRampToValueAtTime(gainValue, startTime + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + Math.max(0.05, duration));
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + Math.max(0.08, duration));
+}}
+function playIdeaOption(optionIndex, trackName) {{
+  stopIdeaPlayback();
+  const payload = window.ideaLabPlayback && window.ideaLabPlayback[optionIndex];
+  if (!payload) return;
+  ideaAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const ctx = ideaAudioContext;
+  const tracks = trackName === "full" ? ["melody", "chords", "bass", "arp"] : [trackName];
+  tracks.forEach(track => {{
+    (payload[track] || []).forEach(event => {{
+      const startTime = ctx.currentTime + 0.05 + event.time;
+      const duration = Math.max(0.06, event.duration);
+      const notes = Array.isArray(event.notes) ? event.notes : [event.note];
+      notes.forEach(note => playTone(ctx, note, startTime, duration, track === "bass" ? 0.08 : track === "chords" ? 0.045 : 0.07));
+    }});
+  }});
+}}
+function regenerateIdea(mode) {{
+  const modeInput = document.getElementById("regenerate_mode");
+  const seedInput = document.getElementById("variation_seed");
+  if (modeInput) modeInput.value = mode;
+  if (seedInput) seedInput.value = String(Date.now() % 1000000);
+  const form = document.querySelector('form[action="/melody-lab/generate"]');
+  if (form) form.submit();
+}}
+</script>
+"""
+    return page_html.replace("</body>", audition_script + "\n</body>")
 
 
-def render_option_preview(result, download_href: str, download_filename: str = "edm_trance_idea_pack.zip"):
+def event_seconds(event, bpm):
+    beat_seconds = 60.0 / max(1, bpm)
+    return round((event["start"] / 480) * beat_seconds, 4), round((event["duration"] / 480) * beat_seconds, 4)
+
+
+def playback_payload(result):
+    payload = []
+    for option in result.options:
+        option_payload = {"melody": [], "chords": [], "bass": [], "arp": []}
+        for section in option.sections:
+            for event in section.melody_events:
+                start, duration = event_seconds(event, option.bpm)
+                option_payload["melody"].append({"time": start, "duration": duration, "note": event["note"]})
+            for event in section.chord_events:
+                start, duration = event_seconds(event, option.bpm)
+                option_payload["chords"].append({"time": start, "duration": min(duration, 2.0), "notes": event["notes"]})
+            for event in section.bass_events:
+                start, duration = event_seconds(event, option.bpm)
+                option_payload["bass"].append({"time": start, "duration": min(duration, 0.5), "note": event["note"]})
+            for event in section.arp_events:
+                start, duration = event_seconds(event, option.bpm)
+                option_payload["arp"].append({"time": start, "duration": duration, "note": event["note"]})
+        payload.append(option_payload)
+    return payload
+
+
+def zip_export_summary(file_path: Path):
+    with zipfile.ZipFile(file_path) as archive:
+        names = archive.namelist()
+        manifest = json.loads(archive.read("preview_manifest.json"))
+        validation = json.loads(archive.read("validation_report.json"))
+        midi_count = sum(1 for name in names if name.endswith(".mid"))
+        sections = manifest["options"][0]["sections"] if manifest.get("options") else []
+        return {
+            "export_schema_version": manifest.get("export_schema_version", "unknown"),
+            "backend_build_marker": manifest.get("backend_build_marker", "unknown"),
+            "midi_count": midi_count,
+            "total_file_count": len(names),
+            "validation_passed": bool(validation.get("passed")),
+            "arrangement_length_bars": manifest.get("arrangement_length_bars", 0),
+            "section_ranges": [(section["name"], section["arrangement_bar_range"]) for section in sections],
+        }
+
+
+def render_export_proof(export_summary):
+    if not export_summary:
+        return ""
+    section_lines = "<br>".join(
+        f'{name}: {bar_range}'
+        for name, bar_range in export_summary["section_ranges"]
+    )
+    return (
+        '<div class="section-preview">'
+        '<h3>Export proof</h3>'
+        f'<p class="notes">Export schema: {export_summary["export_schema_version"]}<br>'
+        f'Backend marker: {export_summary["backend_build_marker"]}<br>'
+        f'MIDI files: {export_summary["midi_count"]}<br>'
+        f'Total files: {export_summary["total_file_count"]}<br>'
+        f'Validation: {"passed" if export_summary["validation_passed"] else "failed"}<br>'
+        f'Arrangement: {export_summary["arrangement_length_bars"]} bars<br>'
+        f'{section_lines}</p>'
+        '</div>'
+    )
+
+
+def render_option_preview(result, download_href: str, download_filename: str = "edm_trance_idea_pack.zip", export_summary=None):
     cards = []
     for option in result.options:
         preview = option_preview_dict(option)
@@ -16631,9 +16772,11 @@ def render_option_preview(result, download_href: str, download_filename: str = "
             notes = "<br>".join(section["notes"])
             section_html.append(
                 '<div class="section-preview">'
-                f'<h3>{section["name"]} <span class="pill">Bars {section["bars"]}</span></h3>'
+                f'<h3>{section["name"]} <span class="pill">Arrangement bars {section["arrangement_bar_range"]}</span></h3>'
                 f'<p class="progression">{" - ".join(section["chords"])}</p>'
-                f'<p>Roman: {" - ".join(section["roman"])} | Energy: {section["energy"]}</p>'
+                f'<p>Section length: {section["section_length_bars"]} bars | Local bars: {section["local_bar_range"]} | Energy: {section["energy"]}</p>'
+                f'<p class="notes">Start tick: {section["start_tick"]} | End tick: {section["end_tick"]} | Arpeggio: {"enabled" if section["arpeggio_enabled"] else "disabled"}</p>'
+                f'<p>Roman: {" - ".join(section["roman"])}</p>'
                 f'<p>{section["motif_summary"]}</p>'
                 f'<p class="notes">{notes}</p>'
                 '</div>'
@@ -16650,6 +16793,28 @@ def render_option_preview(result, download_href: str, download_filename: str = "
             f'<span class="pill">{preview["generation_type"]}</span>'
             '</div>'
             f'<p>Creative risk: {preview["creative_risk_description"]}. Energy: {preview["energy_description"]}.</p>'
+            f'<p><strong>Melody:</strong> {preview["hook_summary"]}</p>'
+            f'<p class="notes">Core motif notes: {", ".join(preview["core_motif_notes"])}<br>'
+            f'Core rhythm beats: {", ".join(str(beat) for beat in preview["core_motif_rhythm"])}<br>'
+            f'Phrase structure: {preview["phrase_structure"]}<br>'
+            f'Strongest hook bar: {preview["strongest_hook_bar"]} | Hook Score: {preview["melody_strength_score"]}/100<br>'
+            f'Candidates tested: {preview["candidates_generated"]} | Rejected: {preview["candidates_rejected"]} | Threshold: {preview["hook_threshold"]} | Met: {"Yes" if preview["threshold_met"] else "No"}<br>'
+            f'{preview["selected_reason"]}<br>'
+            f'Motif clarity: {preview["hook_subscores"]["motif_clarity"]}, Rhythm: {preview["hook_subscores"]["rhythmic_identity"]}, '
+            f'Singability: {preview["hook_subscores"]["singability"]}, Chord targeting: {preview["hook_subscores"]["chord_tone_targeting"]}, '
+            f'Phrase shape: {preview["hook_subscores"]["phrase_shape"]}, Repetition/variation: {preview["hook_subscores"]["repetition_variation"]}, '
+            f'EDM suitability: {preview["hook_subscores"]["edm_suitability"]}</p>'
+            '<div class="actions">'
+            f'<button class="secondary" type="button" onclick="playIdeaOption({len(cards)}, \'full\')">Play Full</button>'
+            f'<button class="secondary" type="button" onclick="playIdeaOption({len(cards)}, \'melody\')">Play Melody</button>'
+            f'<button class="secondary" type="button" onclick="playIdeaOption({len(cards)}, \'chords\')">Play Chords</button>'
+            f'<button class="secondary" type="button" onclick="playIdeaOption({len(cards)}, \'bass\')">Play Bass</button>'
+            f'<button class="secondary" type="button" onclick="playIdeaOption({len(cards)}, \'arp\')">Play Arp</button>'
+            '<button class="secondary" type="button" onclick="stopIdeaPlayback()">Stop</button>'
+            '<button class="secondary" type="button" onclick="regenerateIdea(\'melody_only\')">Regenerate Melody Only</button>'
+            '<button class="secondary" type="button" onclick="regenerateIdea(\'chords_only\')">Regenerate Chords Only</button>'
+            '<button class="secondary" type="button" onclick="regenerateIdea(\'full_option\')">Regenerate Full Option</button>'
+            '</div>'
             + "".join(section_html)
             + '</article>'
         )
@@ -16657,6 +16822,7 @@ def render_option_preview(result, download_href: str, download_filename: str = "
         '<section class="panel result">'
         '<h2>Three creative MIDI options are ready</h2>'
         '<p>The ZIP includes full arrangements, melody-only files, chords-only files, bass/root guides, arpeggio/pluck files, and section MIDI exports for each option.</p>'
+        f'{render_export_proof(export_summary)}'
         f'<a class="button primary" href="{download_href}" download="{download_filename}">Download MIDI Idea ZIP</a>'
         '</section>'
         '<section class="preview-grid">'
@@ -16687,6 +16853,11 @@ def generate_melody_lab(
     complexity: Annotated[str, Form(...)],
     energy: Annotated[str, Form(...)],
     creative_risk: Annotated[str, Form(...)],
+    length_mode: Annotated[str, Form()] = "per_section",
+    include_arpeggio_pluck: Annotated[str, Form()] = "true",
+    audition_depth: Annotated[str, Form()] = "balanced",
+    regenerate_mode: Annotated[str, Form()] = "full_option",
+    variation_seed: Annotated[str, Form()] = "0",
 ):
     result = generate_edm_ideas({
         "bpm": bpm,
@@ -16696,12 +16867,18 @@ def generate_melody_lab(
         "generation_type": generation_type,
         "arrangement_section": arrangement_section,
         "bars": bars,
+        "length_mode": length_mode,
         "complexity": complexity,
         "energy": energy,
         "creative_risk": creative_risk,
+        "include_arpeggio_pluck": include_arpeggio_pluck,
+        "audition_depth": audition_depth,
+        "regenerate_mode": regenerate_mode,
+        "variation_seed": variation_seed,
     })
     file_path = export_idea_pack(result, EXPORTS_DIR, APP_VERSION)
-    filename = f"edm_trance_idea_pack_{export_slug(result.key)}.zip"
+    export_summary = zip_export_summary(file_path)
+    filename = f"edm_trance_idea_pack_{export_slug(result.key)}_section_stems_v2.zip"
     zip_bytes = file_path.read_bytes()
     temp_parent = file_path.parent
     try:
@@ -16711,7 +16888,8 @@ def generate_melody_lab(
     if temp_parent.name.startswith("edm_idea_pack_"):
         shutil.rmtree(temp_parent, ignore_errors=True)
     download_href = "data:application/zip;base64," + base64.b64encode(zip_bytes).decode("ascii")
-    return melody_lab_page(render_option_preview(result, download_href, filename))
+    html = melody_lab_page(render_option_preview(result, download_href, filename, export_summary), json.dumps(playback_payload(result)))
+    return HTMLResponse(html, headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"})
 
 
 @app.get("/advisor", response_class=HTMLResponse)
