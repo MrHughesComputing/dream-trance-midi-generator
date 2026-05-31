@@ -737,13 +737,18 @@ HTML = """
       font-size: 15px;
     }
     .actions { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
-    button {
+    button, .button-link {
       border: 0;
       border-radius: 16px;
       padding: 15px 22px;
       font-size: 15px;
       font-weight: 700;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      text-decoration: none;
     }
     .primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #07111f; }
     .secondary { background: rgba(255,255,255,0.05); color: var(--text); }
@@ -810,7 +815,7 @@ HTML = """
           <div class="actions">
             <button class="primary" type="submit">Generate MIDI Pack</button>
             <button class="secondary" type="reset">Reset</button>
-            <a class="secondary" href="/melody-lab" style="text-decoration:none;">Melody Lab</a>
+            <a class="button-link secondary" href="/melody-lab">Melody Lab</a>
           </div>
         </form>
       </div>
@@ -16698,7 +16703,13 @@ def generate_melody_lab(
     file_path = export_idea_pack(result, EXPORTS_DIR, APP_VERSION)
     filename = f"edm_trance_idea_pack_{export_slug(result.key)}.zip"
     zip_bytes = file_path.read_bytes()
-    file_path.unlink(missing_ok=True)
+    temp_parent = file_path.parent
+    try:
+        file_path.unlink(missing_ok=True)
+    except OSError:
+        pass
+    if temp_parent.name.startswith("edm_idea_pack_"):
+        shutil.rmtree(temp_parent, ignore_errors=True)
     download_href = "data:application/zip;base64," + base64.b64encode(zip_bytes).decode("ascii")
     return melody_lab_page(render_option_preview(result, download_href, filename))
 

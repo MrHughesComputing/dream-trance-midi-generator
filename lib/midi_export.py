@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import shutil
+import tempfile
 import zipfile
 
 from mido import Message, MetaMessage, MidiFile, MidiTrack, bpm2tempo
@@ -118,13 +119,25 @@ def safe_name(value: str) -> str:
     return "".join(char.lower() if char.isalnum() else "_" for char in value).strip("_")
 
 
+def idea_pack_work_dir(exports_dir: Path):
+    try:
+        run_dir = Path(tempfile.mkdtemp(prefix="edm_idea_pack_"))
+        build_dir = run_dir / "build"
+        build_dir.mkdir(parents=True, exist_ok=True)
+        return run_dir, build_dir
+    except OSError:
+        exports_dir.mkdir(parents=True, exist_ok=True)
+        run_dir = exports_dir / f"_edm_idea_pack_{safe_name(str(id(exports_dir)))}"
+        if run_dir.exists():
+            shutil.rmtree(run_dir, ignore_errors=True)
+        build_dir = run_dir / "build"
+        build_dir.mkdir(parents=True, exist_ok=True)
+        return run_dir, build_dir
+
+
 def export_idea_pack(result, exports_dir: Path, app_version: str):
-    exports_dir.mkdir(parents=True, exist_ok=True)
-    temp_dir = exports_dir / f"_edm_idea_build_{safe_name(result.key)}_{safe_name(result.genre)}"
-    if temp_dir.exists():
-        shutil.rmtree(temp_dir, ignore_errors=True)
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = exports_dir / f"edm_trance_idea_pack_{safe_name(result.key)}_{safe_name(result.genre)}.zip"
+    run_dir, temp_dir = idea_pack_work_dir(exports_dir)
+    zip_path = run_dir / f"edm_trance_idea_pack_{safe_name(result.key)}_{safe_name(result.genre)}.zip"
     try:
         manifest = {
             "app_version": app_version,
@@ -169,4 +182,3 @@ def export_idea_pack(result, exports_dir: Path, app_version: str):
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
     return zip_path
-
