@@ -14,6 +14,6 @@ Improved section-aware uplifting vocal trance MIDI generator.
 python -m venv .venv
 .venv\Scripts\activate
 python -m pip install -r requirements.txt
-python -m uvicorn app:app --reload
+python -m uvicorn main:app --reload
 ```
 Then open http://127.0.0.1:8000
