@@ -11,6 +11,9 @@ from .edm_generator import BAR_TICKS
 from .edm_generator import option_preview_dict
 from .music_theory import midi_name, scale_pitch_classes
 
+EXPORT_SCHEMA_VERSION = "section_stems_v3_timing_modes"
+BACKEND_BUILD_MARKER = "length_mode_section_stems_active"
+
 
 def add_note(events, start: int, note: int, duration: int, velocity: int, channel: int = 0):
     events.append((start, Message("note_on", note=int(note), velocity=int(velocity), channel=channel, time=0)))
@@ -111,11 +114,19 @@ def build_track_midi(option, track_name: str):
     return midi
 
 
-def build_section_midi(option, section, trimmed: bool = False):
+def section_offset(section, timing_mode: str):
+    if timing_mode == "aligned":
+        return 0
+    if timing_mode == "section_start_trimmed":
+        return section.start_tick
+    raise ValueError(f"Unsupported section timing mode: {timing_mode}")
+
+
+def build_section_midi(option, section, timing_mode: str = "aligned"):
     tempo = bpm2tempo(option.bpm)
     midi = MidiFile(type=1, ticks_per_beat=TICKS)
-    offset = section.start_tick if trimmed else 0
-    markers = [(0 if trimmed else section.start_tick, section.name)]
+    offset = section_offset(section, timing_mode)
+    markers = [(0 if timing_mode == "section_start_trimmed" else section.start_tick, section.name)]
     chords = []
     melody = []
     bass = []
@@ -141,11 +152,11 @@ def build_section_midi(option, section, trimmed: bool = False):
 
 
 def build_aligned_section_midi(option, section):
-    return build_section_midi(option, section, trimmed=False)
+    return build_section_midi(option, section, timing_mode="aligned")
 
 
-def build_trimmed_section_midi(option, section):
-    return build_section_midi(option, section, trimmed=True)
+def build_section_start_midi(option, section):
+    return build_section_midi(option, section, timing_mode="section_start_trimmed")
 
 
 def section_track_events(section, track_name: str, offset: int = 0):
@@ -165,15 +176,28 @@ def section_track_events(section, track_name: str, offset: int = 0):
     return events
 
 
-def build_section_track_midi(option, section, track_name: str, trimmed: bool = False):
+def first_note_offset_for_events(events, default_offset: int):
+    return min(
+        (abs_time for abs_time, message in events if getattr(message, "type", "") == "note_on" and getattr(message, "velocity", 0) > 0),
+        default=default_offset,
+    )
+
+
+def build_section_track_midi(option, section, track_name: str, timing_mode: str = "aligned"):
     tempo = bpm2tempo(option.bpm)
     raw_events = section_track_events(section, track_name, 0)
-    first_event_tick = min(
-        (abs_time for abs_time, message in raw_events if getattr(message, "type", "") == "note_on" and getattr(message, "velocity", 0) > 0),
-        default=section.start_tick,
-    )
-    offset = first_event_tick if trimmed else 0
-    marker_tick = 0 if trimmed else section.start_tick
+    first_event_tick = first_note_offset_for_events(raw_events, section.start_tick)
+    if timing_mode == "aligned":
+        offset = 0
+        marker_tick = section.start_tick
+    elif timing_mode == "section_start_trimmed":
+        offset = section.start_tick
+        marker_tick = 0
+    elif timing_mode == "first_note_trimmed":
+        offset = first_event_tick
+        marker_tick = 0
+    else:
+        raise ValueError(f"Unsupported section stem timing mode: {timing_mode}")
     events = section_track_events(section, track_name, offset)
     midi = MidiFile(type=1, ticks_per_beat=TICKS)
     midi.tracks.append(finalise_track(TRACK_NAMES.get(track_name, track_name.title()), tempo, events, markers=[(marker_tick, section.name)]))
@@ -288,36 +312,63 @@ def validate_option(option, result):
 
 
 def recommended_use(role: str, section_name: str | None, timing_mode: str):
-    if section_name and timing_mode == "trimmed":
-        return f"Audition {section_name.lower()} {role} from bar 1 in Ableton"
     if section_name and timing_mode == "aligned":
-        return f"Place {section_name.lower()} {role} at its full arrangement position"
+        return "Use when importing into a 48-bar arrangement."
+    if section_name and timing_mode == "section_start_trimmed":
+        return "Use when building this section from bar 1 in Ableton while preserving rests."
+    if section_name and timing_mode == "first_note_trimmed":
+        return "Use when grabbing the motif immediately from tick 0."
     if role == "full":
         return "Audition the complete arranged option"
     return f"Audition full-arrangement {role} stem"
 
 
-def file_manifest_entry(path: str, midi: MidiFile, aligned: bool, trimmed: bool, section=None, role: str = "combined", timing_mode: str | None = None):
+def tick_bar_beat(value):
+    if value is None:
+        return None
+    bar_index = value // BAR_TICKS
+    beat = ((value % BAR_TICKS) / TICKS) + 1
+    return {"bar": int(bar_index + 1), "beat": round(beat, 3)}
+
+
+def original_first_tick(section, role: str):
+    raw_events = []
+    if role == "combined":
+        for track_name in ("melody", "chords", "bass", "arp"):
+            raw_events.extend(section_track_events(section, track_name, 0))
+    elif section:
+        raw_events = section_track_events(section, role, 0)
+    return first_note_offset_for_events(raw_events, section.start_tick) if section else None
+
+
+def file_manifest_entry(path: str, midi: MidiFile, section=None, role: str = "combined", timing_mode: str = "full_arrangement"):
     first_tick = first_note_tick(midi)
     last_tick = last_note_tick(midi)
-    resolved_timing = timing_mode or ("trimmed" if trimmed else "aligned" if aligned else "full")
     length_bars = section.section_length_bars if section else midi_length_bars(midi)
+    original_first = original_first_tick(section, role) if section else first_tick
+    arrangement_start = section.start_tick if section else 0
+    expected_section_start_first = None if original_first is None or not section else max(0, original_first - section.start_tick)
     return {
         "path": path,
         "file": path,
         "role": role,
-        "timing_mode": resolved_timing,
+        "timing_mode": timing_mode,
         "note_count": midi_note_count(midi),
         "first_note_tick": first_tick,
+        "first_note_bar_beat": tick_bar_beat(first_tick),
         "last_note_tick": last_tick,
         "length_bars": length_bars,
-        "aligned": aligned,
-        "trimmed": trimmed,
         "section": section.name if section else None,
+        "section_start_tick": 0 if section and timing_mode in ("section_start_trimmed", "first_note_trimmed") else arrangement_start if section else 0,
+        "arrangement_start_tick": arrangement_start,
+        "original_first_note_tick": original_first,
+        "expected_section_start_first_note_tick": expected_section_start_first,
+        "preserves_internal_rests": timing_mode in ("aligned", "section_start_trimmed", "full_arrangement"),
         "arpeggio_enabled": section.arpeggio_enabled if section else None,
-        "trimmed_starts_at_tick_0": bool(trimmed and first_tick == 0) if section else None,
-        "aligned_preserves_timing": bool(aligned and first_tick is not None and first_tick >= section.start_tick) if section else None,
-        "recommended_use": recommended_use(role, section.name if section else None, resolved_timing),
+        "aligned_preserves_arrangement_timing": bool(timing_mode == "aligned" and first_tick is not None and first_tick >= section.start_tick) if section else None,
+        "section_start_trim_preserves_internal_offset": bool(timing_mode == "section_start_trimmed" and first_tick == expected_section_start_first) if section else None,
+        "first_note_trim_starts_at_tick_0": bool(timing_mode == "first_note_trimmed" and first_tick == 0) if section else None,
+        "recommended_use": recommended_use(role, section.name if section else None, timing_mode),
         "exported": True,
     }
 
@@ -338,6 +389,36 @@ def section_validation_summary(option):
     ]
 
 
+def melody_validation_issues(result):
+    issues = []
+    for option in result.options:
+        metadata = getattr(option, "hook_metadata", {}) or {}
+        audit = getattr(option, "melody_audit", {}) or {}
+        motif_notes = metadata.get("core_motif_notes", [])
+        if not metadata:
+            issues.append(f"{option.id}: hook metadata missing")
+        if not audit:
+            issues.append(f"{option.id}: melody audit missing")
+        if audit and audit.get("candidates_tested", 0) <= 0:
+            issues.append(f"{option.id}: candidates tested missing")
+        if not audit.get("hook_score"):
+            issues.append(f"{option.id}: hook score missing")
+        if not 3 <= len(motif_notes) <= 7:
+            issues.append(f"{option.id}: motif length outside 3-7 notes")
+        section_map = {section.key: section for section in option.sections}
+        if not section_map.get("intro") or not section_map["intro"].melody_events:
+            issues.append(f"{option.id}: intro teaser motif missing")
+        if not section_map.get("breakdown") or len({event['note'] for event in section_map["breakdown"].melody_events}) < 3:
+            issues.append(f"{option.id}: breakdown developed motif missing")
+        if not section_map.get("drop") or len(section_map["drop"].melody_events) < len(motif_notes) * 2:
+            issues.append(f"{option.id}: drop repeated motif missing")
+        if metadata.get("intentional_tension_notes") and option.id != "experimental_modern":
+            issues.append(f"{option.id}: tension notes labelled outside experimental option")
+        if not any(section.melody_events for section in option.sections):
+            issues.append(f"{option.id}: selected melody is empty")
+    return issues
+
+
 def validation_report(result, manifest, files_on_disk=None):
     files = manifest["files"]
     files_on_disk = files_on_disk or set()
@@ -349,21 +430,30 @@ def validation_report(result, manifest, files_on_disk=None):
         if item.get("skipped")
     ]
     manifest_missing = [item["path"] for item in exported_files if item["path"] not in files_on_disk]
-    invalid_trimmed = [
+    invalid_generic_timing = [
         item["path"] for item in exported_files
-        if item.get("trimmed") and item.get("trimmed_starts_at_tick_0") is False
+        if item.get("timing_mode") == "trimmed" or item["path"].endswith("_trimmed.mid")
+    ]
+    invalid_section_start = [
+        item["path"] for item in exported_files
+        if item.get("timing_mode") == "section_start_trimmed" and item.get("section_start_trim_preserves_internal_offset") is False
+    ]
+    invalid_first_note = [
+        item["path"] for item in exported_files
+        if item.get("timing_mode") == "first_note_trimmed" and item.get("first_note_trim_starts_at_tick_0") is False
     ]
     invalid_aligned = [
         item["path"] for item in exported_files
-        if item.get("section") and item.get("aligned") and item.get("aligned_preserves_timing") is False
+        if item.get("section") and item.get("timing_mode") == "aligned" and item.get("aligned_preserves_arrangement_timing") is False
     ]
     exported_zero_note = [
         item["path"] for item in exported_files
         if item.get("role") not in ("markers",) and item.get("note_count", 0) == 0
     ]
-    passed = not (empty_arp_files or manifest_missing or invalid_trimmed or invalid_aligned or exported_zero_note)
+    melody_issues = melody_validation_issues(result)
+    passed = not (empty_arp_files or manifest_missing or invalid_generic_timing or invalid_section_start or invalid_first_note or invalid_aligned or exported_zero_note or melody_issues)
     return {
-        "validation_schema_version": "section_stems_v2",
+        "validation_schema_version": EXPORT_SCHEMA_VERSION,
         "passed": passed,
         "full_arrangement_length_bars": result.arrangement_bars,
         "length_mode": result.length_mode,
@@ -380,24 +470,38 @@ def validation_report(result, manifest, files_on_disk=None):
         "arpeggio_files_empty": empty_arp_files,
         "empty_midi_files_skipped": skipped_empty,
         "manifest_references_missing_from_zip": manifest_missing,
+        "generic_trimmed_timing_labels": invalid_generic_timing,
+        "invalid_section_start_trimmed_files": invalid_section_start,
+        "invalid_first_note_trimmed_files": invalid_first_note,
+        "invalid_aligned_files": invalid_aligned,
         "exported_zero_note_files": exported_zero_note,
         "hook_metadata_exists": {
             option.id: bool(getattr(option, "hook_metadata", None))
             for option in result.options
         },
+        "melody_audit_exists": {
+            option.id: bool(getattr(option, "melody_audit", None))
+            for option in result.options
+        },
+        "melody_validation_issues": melody_issues,
         "melody_strength_scores": {
             option.id: option.melody_strength_score
             for option in result.options
         },
-        "trimmed_section_files_start_at_tick_0": all(
-            item.get("trimmed_starts_at_tick_0") is not False
+        "section_start_trimmed_files_preserve_internal_rests": all(
+            item.get("section_start_trim_preserves_internal_offset") is not False
             for item in exported_files
-            if item.get("trimmed")
+            if item.get("timing_mode") == "section_start_trimmed"
+        ),
+        "first_note_trimmed_files_start_at_tick_0": all(
+            item.get("first_note_trim_starts_at_tick_0") is not False
+            for item in exported_files
+            if item.get("timing_mode") == "first_note_trimmed"
         ),
         "aligned_section_files_preserve_full_timing": all(
-            item.get("aligned_preserves_timing") is not False
+            item.get("aligned_preserves_arrangement_timing") is not False
             for item in exported_files
-            if item.get("aligned") and item.get("section")
+            if item.get("timing_mode") == "aligned" and item.get("section")
         ),
         "preview_manifest_matches_midi_timing": True,
     }
@@ -432,14 +536,14 @@ def skip_manifest_entry(path: str, role: str, section=None, timing_mode: str = "
     }
 
 
-def save_midi_if_not_empty(midi: MidiFile, output_path: Path, manifest_path: str, manifest: dict, *, role: str, section=None, aligned=False, trimmed=False, timing_mode=None, skip_reason="No events"):
+def save_midi_if_not_empty(midi: MidiFile, output_path: Path, manifest_path: str, manifest: dict, *, role: str, section=None, timing_mode="full_arrangement", skip_reason="No events"):
     note_count = midi_note_count(midi)
     if note_count <= 0:
-        manifest["files"].append(skip_manifest_entry(manifest_path, role, section=section, timing_mode=timing_mode or ("trimmed" if trimmed else "aligned" if aligned else "full"), reason=skip_reason))
+        manifest["files"].append(skip_manifest_entry(manifest_path, role, section=section, timing_mode=timing_mode, reason=skip_reason))
         return None
     output_path.parent.mkdir(parents=True, exist_ok=True)
     midi.save(output_path)
-    entry = file_manifest_entry(manifest_path, midi, aligned=aligned, trimmed=trimmed, section=section, role=role, timing_mode=timing_mode)
+    entry = file_manifest_entry(manifest_path, midi, section=section, role=role, timing_mode=timing_mode)
     manifest["files"].append(entry)
     return entry
 
@@ -482,8 +586,8 @@ def export_idea_pack(result, exports_dir: Path, app_version: str):
     zip_path = run_dir / f"edm_trance_idea_pack_{safe_name(result.key)}_{safe_name(result.genre)}.zip"
     try:
         manifest = {
-            "export_schema_version": "section_stems_v2",
-            "backend_build_marker": "length_mode_section_stems_active",
+            "export_schema_version": EXPORT_SCHEMA_VERSION,
+            "backend_build_marker": BACKEND_BUILD_MARKER,
             "app_version": app_version,
             "bpm": result.bpm,
             "ppq": TICKS,
@@ -505,7 +609,7 @@ def export_idea_pack(result, exports_dir: Path, app_version: str):
             "validation": [],
         }
         notes = [
-            "EXPORT SCHEMA: section_stems_v2",
+            f"EXPORT SCHEMA: {EXPORT_SCHEMA_VERSION}",
             f"EDM / Trance MIDI Idea Generator {app_version}",
             f"Key: {result.key}",
             f"Scale: {result.scale}",
@@ -531,8 +635,7 @@ def export_idea_pack(result, exports_dir: Path, app_version: str):
                 f"{option_slug}/full/{full_name}",
                 manifest,
                 role="full",
-                aligned=True,
-                timing_mode="full",
+                timing_mode="full_arrangement",
                 skip_reason="Full arrangement contains no notes",
             )
 
@@ -547,8 +650,7 @@ def export_idea_pack(result, exports_dir: Path, app_version: str):
                     f"{option_slug}/full/{track_file}",
                     manifest,
                     role=track_name,
-                    aligned=True,
-                    timing_mode="full",
+                    timing_mode="full_arrangement",
                     skip_reason=f"No {track_name} events in full arrangement",
                 )
 
@@ -564,30 +666,32 @@ def export_idea_pack(result, exports_dir: Path, app_version: str):
                     manifest,
                     role="combined",
                     section=section,
-                    aligned=True,
                     timing_mode="aligned",
                     skip_reason=f"No combined events in {section.name}",
                 )
                 attach_section_export(option_preview, section.name, "combined", "aligned", aligned_entry)
-                trimmed_midi = build_trimmed_section_midi(option, section)
-                trimmed_file = f"{option_slug}_{section_slug}_trimmed.mid"
-                trimmed_entry = save_midi_if_not_empty(
-                    trimmed_midi,
-                    combined_dir / trimmed_file,
-                    f"{option_slug}/sections_combined/{trimmed_file}",
+                section_start_midi = build_section_start_midi(option, section)
+                section_start_file = f"{option_slug}_{section_slug}_section_start.mid"
+                section_start_entry = save_midi_if_not_empty(
+                    section_start_midi,
+                    combined_dir / section_start_file,
+                    f"{option_slug}/sections_combined/{section_start_file}",
                     manifest,
                     role="combined",
                     section=section,
-                    trimmed=True,
-                    timing_mode="trimmed",
+                    timing_mode="section_start_trimmed",
                     skip_reason=f"No combined events in {section.name}",
                 )
-                attach_section_export(option_preview, section.name, "combined", "trimmed", trimmed_entry)
+                attach_section_export(option_preview, section.name, "combined", "section_start_trimmed", section_start_entry)
 
                 for track_name in ("melody", "chords", "bass", "arp"):
-                    for trimmed, timing_mode in ((False, "aligned"), (True, "trimmed")):
-                        stem_midi = build_section_track_midi(option, section, track_name, trimmed=trimmed)
-                        stem_file = f"{option_slug}_{section_slug}_{TRACK_FILE_NAMES[track_name]}_{timing_mode}.mid"
+                    for timing_mode, suffix in (
+                        ("aligned", "aligned"),
+                        ("section_start_trimmed", "section_start"),
+                        ("first_note_trimmed", "first_note"),
+                    ):
+                        stem_midi = build_section_track_midi(option, section, track_name, timing_mode=timing_mode)
+                        stem_file = f"{option_slug}_{section_slug}_{TRACK_FILE_NAMES[track_name]}_{suffix}.mid"
                         stem_path = f"{option_slug}/section_stems/{section_slug}/{stem_file}"
                         stem_entry = save_midi_if_not_empty(
                             stem_midi,
@@ -596,8 +700,6 @@ def export_idea_pack(result, exports_dir: Path, app_version: str):
                             manifest,
                             role=track_name,
                             section=section,
-                            aligned=not trimmed,
-                            trimmed=trimmed,
                             timing_mode=timing_mode,
                             skip_reason=f"No {track_name} events in {section.name}",
                         )

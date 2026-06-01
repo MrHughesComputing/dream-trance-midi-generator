@@ -203,6 +203,7 @@ class GeneratedOption:
     threshold_met: bool
     selected_reason: str
     hook_metadata: dict
+    melody_audit: dict
     top_candidate_summaries: list[dict] = field(default_factory=list)
 
 
@@ -478,10 +479,15 @@ def create_hook_identity(key_label: str, mode: str, option_id: str, genre: str, 
             [(0.0, 0.5), (1.0, 0.5), (1.75, 0.5), (2.5, 0.75), (3.25, 0.75)],
             [(0.0, 0.75), (1.25, 0.5), (2.0, 0.5), (2.75, 0.5), (3.25, 0.75)],
         ]
+        fingerprints = ["short_short_long_rest_short", "eighth_note_hook", "question_answer_space"]
         roles = role_variants[candidate_index % len(role_variants)]
-        rhythm = rhythm_variants[(candidate_index // len(role_variants)) % len(rhythm_variants)]
-        summary = "Short rising 5-note motif with repeated rhythmic hook and final-bar lift."
-        structure = "call bars 1-2, response bars 3-4, lift/resolution every fourth bar"
+        rhythm_index = (candidate_index // len(role_variants)) % len(rhythm_variants)
+        rhythm = rhythm_variants[rhythm_index]
+        rhythmic_fingerprint = fingerprints[rhythm_index]
+        summary = "Five-note rising-and-returning F# minor style hook with a clean chord-tone identity and final-bar resolution. Best for supersaw or pluck lead."
+        structure = "A - A' - B - A''"
+        emotional_target = "euphoric resolution"
+        recommended_synth_role = "supersaw or pluck lead"
     elif option_id == "emotional_cinematic":
         role_variants = [
             ["third", "root", "fifth", "third", "upper_root", "fifth"],
@@ -494,10 +500,15 @@ def create_hook_identity(key_label: str, mode: str, option_id: str, genre: str, 
             [(0.5, 0.75), (1.5, 0.75), (2.5, 0.75), (3.25, 1.25), (0.0, 0.5), (2.0, 0.5)],
             [(0.0, 1.0), (1.25, 0.5), (2.0, 0.75), (3.0, 1.0), (3.5, 0.75), (0.75, 0.5)],
         ]
+        fingerprints = ["long_short_short_long", "offbeat_answer", "held_payoff"]
         roles = role_variants[candidate_index % len(role_variants)]
-        rhythm = rhythm_variants[(candidate_index // len(role_variants)) % len(rhythm_variants)]
-        summary = "Emotional call-and-response melody targeting the 3rd and 5th of each chord."
-        structure = "longer call, warmer answer, octave lift into phrase ending"
+        rhythm_index = (candidate_index // len(role_variants)) % len(rhythm_variants)
+        rhythm = rhythm_variants[rhythm_index]
+        rhythmic_fingerprint = fingerprints[rhythm_index]
+        summary = "Expressive call-and-response hook with longer endings, stronger thirds/fifths, and a cinematic lift into the payoff. Best for piano, vocal guide, strings, or emotional lead."
+        structure = "A - A' - lift - payoff"
+        emotional_target = "cinematic lift"
+        recommended_synth_role = "piano, strings, vocal guide, or emotional lead"
     else:
         role_variants = [
             ["fifth", "second", "root", "third", "flat_second", "root"],
@@ -510,19 +521,40 @@ def create_hook_identity(key_label: str, mode: str, option_id: str, genre: str, 
             [(0.0, 0.5), (0.5, 0.35), (1.25, 0.65), (2.0, 0.5), (2.75, 0.75), (3.5, 0.4)],
             [(0.25, 0.45), (1.0, 0.45), (1.75, 0.65), (2.5, 0.45), (3.0, 0.75), (3.75, 0.35)],
         ]
+        fingerprints = ["syncopated_push", "offbeat_answer", "sixteenth_note_lift"]
         roles = role_variants[candidate_index % len(role_variants)]
-        rhythm = rhythm_variants[(candidate_index // len(role_variants)) % len(rhythm_variants)]
-        summary = "Experimental syncopated hook using suspended tension before resolving into the drop."
-        structure = "syncopated call, displaced answer, tension note before resolution"
+        rhythm_index = (candidate_index // len(role_variants)) % len(rhythm_variants)
+        rhythm = rhythm_variants[rhythm_index]
+        rhythmic_fingerprint = fingerprints[rhythm_index]
+        summary = "Modern syncopated hook with controlled neighbour-tone tension and a displaced answer phrase that resolves into the drop. Best for progressive EDM or darker festival lead."
+        structure = "A - displaced answer - tension - resolution"
+        emotional_target = "controlled modern tension"
+        recommended_synth_role = "progressive EDM lead, pluck stack, or darker festival lead"
     preview_chord = degree_triad(key_label, mode, 1, option_id, "drop", genre)
     preview_chord.voicing = voice_chord(preview_chord, key_label, mode, "drop", option_id, "peak_time")
-    notes = [midi_name(hook_pitch_for_role(role, preview_chord, key_label, mode, option_id, "drop")) for role in roles[:6]]
+    midi_notes = [hook_pitch_for_role(role, preview_chord, key_label, mode, option_id, "drop") for role in roles[:6]]
+    notes = [midi_name(note) for note in midi_notes]
+    interval_shape = [midi_notes[idx] - midi_notes[idx - 1] for idx in range(1, len(midi_notes))]
+    intentional_tension_notes = []
+    if option_id == "experimental_modern" and "flat_second" in roles:
+        intentional_tension_notes.append({
+            "note": midi_name(hook_pitch_for_role("flat_second", preview_chord, key_label, mode, option_id, "drop")),
+            "reason": "chromatic lower neighbour used for modern Phrygian-style tension",
+            "resolved_to": midi_name(hook_pitch_for_role("root", preview_chord, key_label, mode, option_id, "drop")),
+        })
     return {
         "roles": roles,
         "rhythm": rhythm,
         "summary": summary,
         "structure": structure,
         "notes": notes,
+        "midi_notes": midi_notes,
+        "motif_interval_shape": interval_shape,
+        "rhythmic_fingerprint": rhythmic_fingerprint,
+        "payoff_note": notes[-1] if notes else "",
+        "emotional_target": emotional_target,
+        "recommended_synth_role": recommended_synth_role,
+        "intentional_tension_notes": intentional_tension_notes,
         "candidate_index": candidate_index,
     }
 
@@ -588,7 +620,7 @@ def hook_events_for_bar(chord: ChordIdea, hook_identity, key_label: str, mode: s
 def score_hook_identity(option_id: str, sections: list[SectionIdea], hook_identity):
     melody = [event for section in sections for event in section.melody_events]
     if not melody:
-        return {"total": 0, "motif_clarity": 0, "rhythmic_identity": 0, "singability": 0, "chord_tone_targeting": 0, "phrase_shape": 0, "repetition_variation": 0, "edm_suitability": 0}
+        return {"total": 0, "motif_clarity": 0, "rhythmic_identity": 0, "hummability": 0, "singability": 0, "chord_tone_targeting": 0, "phrase_shape": 0, "repetition_variation": 0, "edm_suitability": 0}
     pitches = [event["note"] for event in melody]
     starts = [event["start"] % BAR_TICKS for event in melody]
     durations = [event["duration"] for event in melody]
@@ -602,7 +634,7 @@ def score_hook_identity(option_id: str, sections: list[SectionIdea], hook_identi
     rhythmic_identity = clamp(58 + len(set(starts)) * 5 + len(set(durations)) * 6 - (14 if len(set(durations)) <= 1 else 0), 0, 100)
     intervals = [abs(pitches[idx] - pitches[idx - 1]) for idx in range(1, len(pitches))]
     large_leaps = sum(1 for interval in intervals if interval > 12)
-    singability = clamp(86 - large_leaps * 5 - max(0, range_span - 24) + (8 if long_endings else 0), 0, 100)
+    hummability = clamp(88 - large_leaps * 5 - max(0, range_span - 22) + (8 if long_endings else 0) - (8 if len(set(starts)) > 7 else 0), 0, 100)
     chord_tone_targeting = 82
     phrase_shape = clamp(62 + (10 if range_span >= 7 else -8) + min(18, long_endings * 2), 0, 100)
     repetition_variation = clamp(68 + min(18, repeated_rhythm // 2) - (10 if root_overuse > 0.45 else 0), 0, 100)
@@ -610,14 +642,14 @@ def score_hook_identity(option_id: str, sections: list[SectionIdea], hook_identi
     score = round(
         motif_clarity * 0.20
         + rhythmic_identity * 0.15
-        + singability * 0.20
+        + hummability * 0.20
         + chord_tone_targeting * 0.15
         + phrase_shape * 0.15
         + repetition_variation * 0.10
         + edm_suitability * 0.05
     )
     if option_id == "classic_reliable":
-        score -= 3
+        score += 2
     elif option_id == "emotional_cinematic":
         score += 1
     elif option_id == "experimental_modern":
@@ -627,7 +659,8 @@ def score_hook_identity(option_id: str, sections: list[SectionIdea], hook_identi
         "total": total,
         "motif_clarity": motif_clarity,
         "rhythmic_identity": rhythmic_identity,
-        "singability": singability,
+        "hummability": hummability,
+        "singability": hummability,
         "chord_tone_targeting": chord_tone_targeting,
         "phrase_shape": phrase_shape,
         "repetition_variation": repetition_variation,
@@ -750,12 +783,12 @@ def candidate_attempt_count(option_id: str, audition_depth: str):
     if audition_depth == "draft":
         return 3
     if audition_depth == "deep":
-        return {"classic_reliable": 20, "emotional_cinematic": 24, "experimental_modern": 32}.get(option_id, 20)
-    return {"classic_reliable": 8, "emotional_cinematic": 10, "experimental_modern": 12}.get(option_id, 8)
+        return {"classic_reliable": 16, "emotional_cinematic": 24, "experimental_modern": 32}.get(option_id, 20)
+    return {"classic_reliable": 8, "emotional_cinematic": 12, "experimental_modern": 16}.get(option_id, 8)
 
 
 def hook_threshold(option_id: str):
-    return {"classic_reliable": 70, "emotional_cinematic": 75, "experimental_modern": 68}.get(option_id, 70)
+    return {"classic_reliable": 75, "emotional_cinematic": 78, "experimental_modern": 70}.get(option_id, 75)
 
 
 def default_arpeggio_enabled(generation_type: str, genre: str, complexity: str, raw_value=None):
@@ -781,27 +814,73 @@ def arrangement_length_bars(controls):
     ))
 
 
+def hook_weaknesses(score_detail):
+    weaknesses = []
+    labels = {
+        "motif_clarity": "motif could be clearer",
+        "hummability": "hummability could be stronger",
+        "rhythmic_identity": "rhythmic fingerprint could be more distinct",
+        "chord_tone_targeting": "important notes could target chord tones more strongly",
+        "phrase_shape": "phrase contour could have a clearer peak",
+        "repetition_variation": "repetition/variation balance could improve",
+        "edm_suitability": "drop payoff could be more EDM-focused",
+    }
+    for key, label in labels.items():
+        if score_detail.get(key, 100) < 76:
+            weaknesses.append(label)
+    return weaknesses[:3]
+
+
 def build_hook_metadata(option_id: str, hook_identity, score_detail, strongest_hook_bar: int):
-    hummability = "Excellent" if score_detail["singability"] >= 88 else "Strong" if score_detail["singability"] >= 75 else "Developing"
+    hummability = "Excellent" if score_detail["hummability"] >= 88 else "Strong" if score_detail["hummability"] >= 75 else "Developing"
     return {
         "core_motif_notes": hook_identity["notes"],
         "core_motif_rhythm": [beat for beat, _length in hook_identity["rhythm"]],
+        "motif_interval_shape": hook_identity["motif_interval_shape"],
         "phrase_structure": hook_identity["structure"],
         "strongest_hook_bar": strongest_hook_bar,
+        "payoff_note": hook_identity["payoff_note"],
+        "emotional_target": hook_identity["emotional_target"],
+        "hook_score": score_detail["total"],
         "melody_strength_score": score_detail["total"],
         "melody_description": hook_identity["summary"],
+        "rhythmic_fingerprint": hook_identity["rhythmic_fingerprint"],
         "intro_teaser_description": "Sparse 2-4 note teaser using the same central motif with wide space.",
         "breakdown_development_description": "Emotional call-and-response development of the motif with longer phrase endings.",
         "drop_hook_description": "Primary repeated hook statement with controlled variation and a clearer payoff note.",
         "hummability_rating": hummability,
         "motif_clarity_score": score_detail["motif_clarity"],
         "rhythmic_identity_score": score_detail["rhythmic_identity"],
-        "singability_score": score_detail["singability"],
+        "hummability_score": score_detail["hummability"],
+        "singability_score": score_detail["hummability"],
         "chord_tone_targeting_score": score_detail["chord_tone_targeting"],
         "phrase_shape_score": score_detail["phrase_shape"],
         "repetition_variation_score": score_detail["repetition_variation"],
         "edm_trance_suitability_score": score_detail["edm_suitability"],
+        "intentional_tension_notes": hook_identity["intentional_tension_notes"],
+        "recommended_synth_role": hook_identity["recommended_synth_role"],
+        "weaknesses": hook_weaknesses(score_detail),
         "option_type": option_id,
+    }
+
+
+def build_melody_audit(option_id: str, hook_identity, score_detail, audition, selected_rank: int):
+    return {
+        "hook_score": score_detail["total"],
+        "threshold": audition["hook_threshold"],
+        "threshold_met": audition["threshold_met"],
+        "candidates_tested": audition["candidates_generated"],
+        "selected_candidate_rank": selected_rank,
+        "motif_clarity_score": score_detail["motif_clarity"],
+        "hummability_score": score_detail["hummability"],
+        "rhythmic_identity_score": score_detail["rhythmic_identity"],
+        "chord_tone_targeting_score": score_detail["chord_tone_targeting"],
+        "phrase_shape_score": score_detail["phrase_shape"],
+        "repetition_variation_score": score_detail["repetition_variation"],
+        "edm_trance_suitability_score": score_detail["edm_suitability"],
+        "selected_reason": audition["selected_reason"],
+        "weaknesses": hook_weaknesses(score_detail),
+        "recommended_use": hook_identity["recommended_synth_role"],
     }
 
 
@@ -861,15 +940,15 @@ def reason_for_candidate(score_detail, threshold_met: bool):
         strengths.append("strong motif clarity")
     if score_detail["rhythmic_identity"] >= 75:
         strengths.append("clear rhythmic identity")
-    if score_detail["singability"] >= 78:
-        strengths.append("high singability")
+    if score_detail["hummability"] >= 78:
+        strengths.append("high hummability")
     if score_detail["phrase_shape"] >= 76:
         strengths.append("clear phrase contour")
     if score_detail["repetition_variation"] >= 75:
         strengths.append("good repetition with variation")
     if not strengths:
         strengths.append("best available balance across hook categories")
-    prefix = "Selected because: " if threshold_met else "Best available candidate - below preferred hook threshold. Selected because: "
+    prefix = "Selected because: " if threshold_met else "Best available candidate, but below preferred hook threshold. Selected because: "
     return prefix + ", ".join(strengths) + "."
 
 
@@ -909,6 +988,7 @@ def generate_best_hook(profile, controls, rng: random.Random):
         "threshold_met": threshold_met,
         "selected_reason": reason_for_candidate(winner["score_detail"], threshold_met),
         "top_candidate_summaries": top_summaries,
+        "selected_candidate_rank": candidates.index(winner) + 1,
     }
 
 
@@ -919,6 +999,7 @@ def generate_option(profile, controls, rng: random.Random) -> GeneratedOption:
     strongest_hook_bar = next((section.start_bar + 1 for section in sections if section.key == "drop"), sections[-1].start_bar + 1 if sections else 1)
     score_detail = winner["score_detail"]
     hook_metadata = build_hook_metadata(profile["id"], hook_identity, score_detail, strongest_hook_bar)
+    melody_audit = build_melody_audit(profile["id"], hook_identity, score_detail, audition, audition["selected_candidate_rank"])
     return GeneratedOption(
         id=profile["id"],
         name=profile["name"],
@@ -946,6 +1027,7 @@ def generate_option(profile, controls, rng: random.Random) -> GeneratedOption:
         threshold_met=audition["threshold_met"],
         selected_reason=audition["selected_reason"],
         hook_metadata=hook_metadata,
+        melody_audit=melody_audit,
         top_candidate_summaries=audition["top_candidate_summaries"],
     )
 
@@ -974,7 +1056,7 @@ def normalize_controls(raw):
         "creative_risk": raw.get("creative_risk", "club_ready"),
         "length_mode": raw.get("length_mode", "per_section"),
         "include_arpeggio_pluck": default_arpeggio_enabled(generation_type, genre, complexity, raw.get("include_arpeggio_pluck")),
-        "audition_depth": raw.get("audition_depth", "balanced"),
+        "audition_depth": raw.get("hook_search_depth", raw.get("audition_depth", "balanced")),
         "regenerate_mode": raw.get("regenerate_mode", "full_option"),
         "variation_seed": raw.get("variation_seed", 0),
     }
@@ -1020,6 +1102,9 @@ def option_preview_dict(option: GeneratedOption):
         "threshold_met": option.threshold_met,
         "selected_reason": option.selected_reason,
         "hook_metadata": option.hook_metadata,
+        "melody_audit": option.melody_audit,
+        "rhythmic_fingerprint": option.hook_metadata["rhythmic_fingerprint"],
+        "intentional_tension_notes": option.hook_metadata["intentional_tension_notes"],
         "top_candidate_summaries": option.top_candidate_summaries,
         "sections": [
             {

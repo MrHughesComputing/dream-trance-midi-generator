@@ -22,7 +22,7 @@ from lib.edm_generator import (
     generate_edm_ideas,
     option_preview_dict,
 )
-from lib.midi_export import export_idea_pack
+from lib.midi_export import EXPORT_SCHEMA_VERSION, export_idea_pack
 from lib.music_theory import KEY_OPTIONS as EDM_KEY_OPTIONS
 from lib.music_theory import MODE_LABELS
 
@@ -16592,10 +16592,10 @@ MELODY_LAB_HTML = """
             <select id="creative_risk" name="creative_risk">__RISKS__</select>
           </div>
           <div class="field wide">
-            <label for="audition_depth">Hook Audition Depth</label>
-            <select id="audition_depth" name="audition_depth">
+            <label for="hook_search_depth">Hook Search Depth</label>
+            <select id="hook_search_depth" name="hook_search_depth">
               <option value="draft">Draft - 3 candidates</option>
-              <option value="balanced" selected>Balanced - 8 to 12 candidates</option>
+              <option value="balanced" selected>Balanced - 8 to 16 candidates</option>
               <option value="deep">Deep search - 20 to 32 candidates</option>
             </select>
           </div>
@@ -16796,12 +16796,13 @@ def render_option_preview(result, download_href: str, download_filename: str = "
             f'<p><strong>Melody:</strong> {preview["hook_summary"]}</p>'
             f'<p class="notes">Core motif notes: {", ".join(preview["core_motif_notes"])}<br>'
             f'Core rhythm beats: {", ".join(str(beat) for beat in preview["core_motif_rhythm"])}<br>'
+            f'Rhythmic fingerprint: {preview["rhythmic_fingerprint"]}<br>'
             f'Phrase structure: {preview["phrase_structure"]}<br>'
             f'Strongest hook bar: {preview["strongest_hook_bar"]} | Hook Score: {preview["melody_strength_score"]}/100<br>'
             f'Candidates tested: {preview["candidates_generated"]} | Rejected: {preview["candidates_rejected"]} | Threshold: {preview["hook_threshold"]} | Met: {"Yes" if preview["threshold_met"] else "No"}<br>'
             f'{preview["selected_reason"]}<br>'
             f'Motif clarity: {preview["hook_subscores"]["motif_clarity"]}, Rhythm: {preview["hook_subscores"]["rhythmic_identity"]}, '
-            f'Singability: {preview["hook_subscores"]["singability"]}, Chord targeting: {preview["hook_subscores"]["chord_tone_targeting"]}, '
+            f'Hummability: {preview["hook_subscores"]["hummability"]}, Chord targeting: {preview["hook_subscores"]["chord_tone_targeting"]}, '
             f'Phrase shape: {preview["hook_subscores"]["phrase_shape"]}, Repetition/variation: {preview["hook_subscores"]["repetition_variation"]}, '
             f'EDM suitability: {preview["hook_subscores"]["edm_suitability"]}</p>'
             '<div class="actions">'
@@ -16855,6 +16856,7 @@ def generate_melody_lab(
     creative_risk: Annotated[str, Form(...)],
     length_mode: Annotated[str, Form()] = "per_section",
     include_arpeggio_pluck: Annotated[str, Form()] = "true",
+    hook_search_depth: Annotated[str, Form()] = "balanced",
     audition_depth: Annotated[str, Form()] = "balanced",
     regenerate_mode: Annotated[str, Form()] = "full_option",
     variation_seed: Annotated[str, Form()] = "0",
@@ -16872,13 +16874,13 @@ def generate_melody_lab(
         "energy": energy,
         "creative_risk": creative_risk,
         "include_arpeggio_pluck": include_arpeggio_pluck,
-        "audition_depth": audition_depth,
+        "hook_search_depth": hook_search_depth or audition_depth,
         "regenerate_mode": regenerate_mode,
         "variation_seed": variation_seed,
     })
     file_path = export_idea_pack(result, EXPORTS_DIR, APP_VERSION)
     export_summary = zip_export_summary(file_path)
-    filename = f"edm_trance_idea_pack_{export_slug(result.key)}_section_stems_v2.zip"
+    filename = f"edm_trance_idea_pack_{export_slug(result.key)}_{EXPORT_SCHEMA_VERSION}.zip"
     zip_bytes = file_path.read_bytes()
     temp_parent = file_path.parent
     try:
