@@ -204,6 +204,8 @@ class GeneratedOption:
     selected_reason: str
     hook_metadata: dict
     melody_audit: dict
+    core_hook_audit: dict
+    full_arrangement_melody_audit: dict
     top_candidate_summaries: list[dict] = field(default_factory=list)
 
 
@@ -1034,6 +1036,87 @@ def build_melody_audit(option_id: str, hook_identity, score_detail, audition, se
     }
 
 
+def build_core_hook_audit(hook_identity, score_detail):
+    notes = hook_identity.get("midi_notes", [])
+    intervals = [abs(notes[idx] - notes[idx - 1]) for idx in range(1, len(notes))]
+    motif_len = len(notes)
+    range_span = max(notes) - min(notes) if notes else 0
+    avg_interval = sum(intervals) / max(1, len(intervals))
+    large_leaps = sum(1 for interval in intervals if interval > 12)
+    rhythm = hook_identity.get("rhythm", [])
+    rhythm_values = [round(length, 2) for _beat, length in rhythm]
+    start_values = [round(beat, 2) for beat, _length in rhythm]
+    unique_rhythm = len(set(rhythm_values))
+    has_payoff = bool(hook_identity.get("payoff_note")) and (rhythm[-1][1] >= 0.65 if rhythm else False)
+    interval_score = clamp_score(92 - max(0, avg_interval - 5) * 5 - large_leaps * 12 - max(0, range_span - 14) * 1.5)
+    hummability = clamp_score(70 + interval_score * 0.25 + (12 if 3 <= motif_len <= 6 else -10) + (8 if has_payoff else -6) - max(0, range_span - 15))
+    rhythm_score = clamp_score(64 + unique_rhythm * 7 + len(set(start_values)) * 2 - (10 if unique_rhythm <= 1 else 0) - (8 if len(start_values) > 7 else 0))
+    motif_length_score = clamp_score(96 if 3 <= motif_len <= 6 else 72 if motif_len == 7 else 55)
+    payoff_score = clamp_score(84 + (10 if has_payoff else -18) + (6 if hook_identity.get("payoff_note") in hook_identity.get("notes", []) else 0))
+    repeated_identity = clamp_score(score_detail.get("motif_clarity", 0) * 0.65 + score_detail.get("repetition_variation", 0) * 0.35)
+    contour_score = clamp_score(76 + (8 if range_span >= 7 else -8) - large_leaps * 5 + (6 if notes and notes[0] == notes[-1] else 0))
+    core_score = clamp_score(
+        hummability * 0.30
+        + motif_length_score * 0.15
+        + interval_score * 0.15
+        + rhythm_score * 0.15
+        + payoff_score * 0.15
+        + repeated_identity * 0.05
+        + contour_score * 0.05
+    )
+    return {
+        "core_hook_score": core_score,
+        "core_hook_hummability": hummability,
+        "core_hook_rhythm_score": rhythm_score,
+        "core_hook_interval_score": interval_score,
+        "core_hook_payoff_score": payoff_score,
+        "core_hook_description": hook_identity.get("summary", ""),
+        "can_hum_after_one_listen": hummability >= 82 and motif_len <= 6,
+        "motif_length_score": motif_length_score,
+        "repeated_identity_score": repeated_identity,
+        "hook_contour_score": contour_score,
+    }
+
+
+def build_full_arrangement_melody_audit(sections, score_detail):
+    section_map = {section.key: section for section in sections}
+    intro = section_map.get("intro")
+    breakdown = section_map.get("breakdown")
+    drop = section_map.get("drop")
+    all_events = [event for section in sections for event in section.melody_events]
+    intro_count = len(intro.melody_events) if intro else 0
+    breakdown_unique = len({event["note"] for event in breakdown.melody_events}) if breakdown else 0
+    drop_count = len(drop.melody_events) if drop else 0
+    total_bars = sum(section.section_length_bars for section in sections)
+    density = len(all_events) / max(1, total_bars)
+    pitches = [event["note"] for event in all_events]
+    range_span = max(pitches) - min(pitches) if pitches else 0
+    intro_teaser_score = clamp_score(86 - max(0, intro_count / max(1, intro.section_length_bars if intro else 1) - 2.5) * 12 if intro else 0)
+    breakdown_development_score = clamp_score(64 + breakdown_unique * 5 + score_detail.get("phrase_shape", 0) * 0.15 if breakdown else 0)
+    drop_payoff_score = clamp_score(58 + min(24, drop_count / max(1, drop.section_length_bars if drop else 1) * 3) + score_detail.get("edm_suitability", 0) * 0.20 if drop else 0)
+    section_densities = [
+        len(section.melody_events) / max(1, section.section_length_bars)
+        for section in sections
+    ]
+    section_contrast_score = clamp_score(68 + (max(section_densities) - min(section_densities)) * 8 if section_densities else 0)
+    long_form_range_score = clamp_score(92 - max(0, range_span - 24) * 2 - (8 if density > 6 else 0))
+    arrangement_score = clamp_score(
+        intro_teaser_score * 0.18
+        + breakdown_development_score * 0.20
+        + drop_payoff_score * 0.24
+        + section_contrast_score * 0.18
+        + long_form_range_score * 0.20
+    )
+    return {
+        "arrangement_melody_score": arrangement_score,
+        "intro_teaser_score": intro_teaser_score,
+        "breakdown_development_score": breakdown_development_score,
+        "drop_payoff_score": drop_payoff_score,
+        "section_contrast_score": section_contrast_score,
+        "long_form_range_score": long_form_range_score,
+    }
+
+
 def build_sections_for_hook(profile, controls, hook_identity, rng: random.Random):
     bars = int(controls["bars"])
     plan = section_plan(controls["generation_type"], controls["arrangement_section"], bars, controls["length_mode"])
@@ -1150,6 +1233,8 @@ def generate_option(profile, controls, rng: random.Random) -> GeneratedOption:
     score_detail = winner["score_detail"]
     hook_metadata = build_hook_metadata(profile["id"], hook_identity, score_detail, strongest_hook_bar)
     melody_audit = build_melody_audit(profile["id"], hook_identity, score_detail, audition, audition["selected_candidate_rank"])
+    core_hook_audit = build_core_hook_audit(hook_identity, score_detail)
+    full_arrangement_melody_audit = build_full_arrangement_melody_audit(sections, score_detail)
     return GeneratedOption(
         id=profile["id"],
         name=profile["name"],
@@ -1178,6 +1263,8 @@ def generate_option(profile, controls, rng: random.Random) -> GeneratedOption:
         selected_reason=audition["selected_reason"],
         hook_metadata=hook_metadata,
         melody_audit=melody_audit,
+        core_hook_audit=core_hook_audit,
+        full_arrangement_melody_audit=full_arrangement_melody_audit,
         top_candidate_summaries=audition["top_candidate_summaries"],
     )
 
@@ -1253,6 +1340,8 @@ def option_preview_dict(option: GeneratedOption):
         "selected_reason": option.selected_reason,
         "hook_metadata": option.hook_metadata,
         "melody_audit": option.melody_audit,
+        "core_hook_audit": option.core_hook_audit,
+        "full_arrangement_melody_audit": option.full_arrangement_melody_audit,
         "rhythmic_fingerprint": option.hook_metadata["rhythmic_fingerprint"],
         "intentional_tension_notes": option.hook_metadata["intentional_tension_notes"],
         "top_candidate_summaries": option.top_candidate_summaries,

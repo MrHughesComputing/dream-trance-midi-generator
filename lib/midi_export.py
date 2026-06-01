@@ -404,18 +404,30 @@ def audit_weighted_total(audit):
 def melody_validation_issues(result):
     issues = []
     score_vectors = []
+    core_hummability_by_option = {}
+    core_rhythm_by_option = {}
     for option in result.options:
         metadata = getattr(option, "hook_metadata", {}) or {}
         audit = getattr(option, "melody_audit", {}) or {}
+        core_audit = getattr(option, "core_hook_audit", {}) or {}
+        arrangement_audit = getattr(option, "full_arrangement_melody_audit", {}) or {}
         motif_notes = metadata.get("core_motif_notes", [])
         if not metadata:
             issues.append(f"{option.id}: hook metadata missing")
         if not audit:
             issues.append(f"{option.id}: melody audit missing")
+        if not core_audit:
+            issues.append(f"{option.id}: core hook audit missing")
+        if not arrangement_audit:
+            issues.append(f"{option.id}: full arrangement melody audit missing")
         if audit and audit.get("candidates_tested", 0) <= 0:
             issues.append(f"{option.id}: candidates tested missing")
         if not audit.get("hook_score"):
             issues.append(f"{option.id}: hook score missing")
+        if core_audit and not core_audit.get("core_hook_score"):
+            issues.append(f"{option.id}: core hook score missing")
+        if arrangement_audit and not arrangement_audit.get("arrangement_melody_score"):
+            issues.append(f"{option.id}: full arrangement melody score missing")
         if not 3 <= len(motif_notes) <= 7:
             issues.append(f"{option.id}: motif length outside 3-7 notes")
         section_map = {section.key: section for section in option.sections}
@@ -447,6 +459,34 @@ def melody_validation_issues(result):
         ]
         if any(value is None or value < 0 or value > 100 for value in score_values):
             issues.append(f"{option.id}: score outside 0-100 range")
+        core_values = [
+            core_audit.get("core_hook_score"),
+            core_audit.get("core_hook_hummability"),
+            core_audit.get("core_hook_rhythm_score"),
+            core_audit.get("core_hook_interval_score"),
+            core_audit.get("core_hook_payoff_score"),
+        ]
+        arrangement_values = [
+            arrangement_audit.get("arrangement_melody_score"),
+            arrangement_audit.get("intro_teaser_score"),
+            arrangement_audit.get("breakdown_development_score"),
+            arrangement_audit.get("drop_payoff_score"),
+            arrangement_audit.get("section_contrast_score"),
+            arrangement_audit.get("long_form_range_score"),
+        ]
+        if core_audit and any(value is None or value < 0 or value > 100 for value in core_values):
+            issues.append(f"{option.id}: core hook audit score outside 0-100 range")
+        if arrangement_audit and any(value is None or value < 0 or value > 100 for value in arrangement_values):
+            issues.append(f"{option.id}: full arrangement melody audit score outside 0-100 range")
+        if core_audit and arrangement_audit:
+            if core_audit.get("core_hook_score") == arrangement_audit.get("arrangement_melody_score") and core_audit.get("core_hook_hummability") == arrangement_audit.get("long_form_range_score"):
+                issues.append(f"{option.id}: core hook and full arrangement scores appear confused")
+            if not core_audit.get("core_hook_description"):
+                issues.append(f"{option.id}: core hook description missing")
+            if core_audit.get("can_hum_after_one_listen") not in (True, False):
+                issues.append(f"{option.id}: core hook hummability decision missing")
+        core_hummability_by_option[option.id] = core_audit.get("core_hook_hummability", 0)
+        core_rhythm_by_option[option.id] = core_audit.get("core_hook_rhythm_score", 0)
         if audit and audit.get("hook_score") != audit_weighted_total(audit):
             issues.append(f"{option.id}: total hook score does not match weighted sub-scores")
         if audit.get("rhythmic_identity_score") == 100 and "100" not in explanations.get("rhythmic_identity", ""):
@@ -456,6 +496,14 @@ def melody_validation_issues(result):
             issues.append(f"{option.id}: selected melody is empty")
     if len(set(score_vectors)) <= 1 and len(score_vectors) > 1:
         issues.append("all options have identical hook sub-score vectors")
+    if core_hummability_by_option:
+        classic_hum = core_hummability_by_option.get("classic_reliable", 0)
+        if classic_hum and classic_hum < max(core_hummability_by_option.values()) - 3:
+            issues.append("classic reliable core hook is not recognised as the most hummable option")
+    if core_rhythm_by_option:
+        experimental_rhythm = core_rhythm_by_option.get("experimental_modern", 0)
+        if experimental_rhythm and experimental_rhythm < 55:
+            issues.append("experimental core hook rhythmic identity is unexpectedly weak")
     return issues
 
 
@@ -521,6 +569,22 @@ def validation_report(result, manifest, files_on_disk=None):
         },
         "melody_audit_exists": {
             option.id: bool(getattr(option, "melody_audit", None))
+            for option in result.options
+        },
+        "core_hook_audit_exists": {
+            option.id: bool(getattr(option, "core_hook_audit", None))
+            for option in result.options
+        },
+        "full_arrangement_melody_audit_exists": {
+            option.id: bool(getattr(option, "full_arrangement_melody_audit", None))
+            for option in result.options
+        },
+        "core_hook_scores": {
+            option.id: option.core_hook_audit.get("core_hook_score")
+            for option in result.options
+        },
+        "full_arrangement_melody_scores": {
+            option.id: option.full_arrangement_melody_audit.get("arrangement_melody_score")
             for option in result.options
         },
         "melody_validation_issues": melody_issues,

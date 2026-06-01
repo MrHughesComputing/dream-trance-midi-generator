@@ -16767,6 +16767,9 @@ def render_option_preview(result, download_href: str, download_filename: str = "
     cards = []
     for option in result.options:
         preview = option_preview_dict(option)
+        core_audit = preview.get("core_hook_audit", {})
+        arrangement_audit = preview.get("full_arrangement_melody_audit", {})
+        hook_metadata = preview.get("hook_metadata", {})
         section_html = []
         for section in preview["sections"]:
             notes = "<br>".join(section["notes"])
@@ -16794,11 +16797,16 @@ def render_option_preview(result, download_href: str, download_filename: str = "
             '</div>'
             f'<p>Creative risk: {preview["creative_risk_description"]}. Energy: {preview["energy_description"]}.</p>'
             f'<p><strong>Melody:</strong> {preview["hook_summary"]}</p>'
+            f'<p><strong>Core Hook Score:</strong> {core_audit.get("core_hook_score", 0)}/100 | '
+            f'<strong>Full Arrangement Melody Score:</strong> {arrangement_audit.get("arrangement_melody_score", 0)}/100<br>'
+            f'<strong>Hummability:</strong> {hook_metadata.get("hummability_rating", "Unrated")} '
+            f'({core_audit.get("core_hook_hummability", 0)}/100) | '
+            f'<strong>Best use:</strong> {hook_metadata.get("recommended_synth_role", preview.get("melody_audit", {}).get("recommended_use", "lead/pluck hook"))}</p>'
             f'<p class="notes">Core motif notes: {", ".join(preview["core_motif_notes"])}<br>'
             f'Core rhythm beats: {", ".join(str(beat) for beat in preview["core_motif_rhythm"])}<br>'
             f'Rhythmic fingerprint: {preview["rhythmic_fingerprint"]}<br>'
             f'Phrase structure: {preview["phrase_structure"]}<br>'
-            f'Strongest hook bar: {preview["strongest_hook_bar"]} | Hook Score: {preview["melody_strength_score"]}/100<br>'
+            f'Strongest hook bar: {preview["strongest_hook_bar"]} | Legacy weighted hook score: {preview["melody_strength_score"]}/100<br>'
             f'Candidates tested: {preview["candidates_generated"]} | Rejected: {preview["candidates_rejected"]} | Threshold: {preview["hook_threshold"]} | Met: {"Yes" if preview["threshold_met"] else "No"}<br>'
             f'{preview["selected_reason"]}<br>'
             f'Motif clarity: {preview["hook_subscores"]["motif_clarity"]}, Rhythm: {preview["hook_subscores"]["rhythmic_identity"]}, '
