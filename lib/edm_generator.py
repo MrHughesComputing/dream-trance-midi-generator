@@ -617,54 +617,200 @@ def hook_events_for_bar(chord: ChordIdea, hook_identity, key_label: str, mode: s
     return events
 
 
+def clamp_score(value):
+    return int(clamp(round(value), 0, 100))
+
+
+def event_bar(section: SectionIdea, event):
+    return max(0, (event["start"] - section.start_tick) // BAR_TICKS)
+
+
+def event_beat(event):
+    return round((event["start"] % BAR_TICKS) / TICKS, 3)
+
+
+def motif_signature(events, limit):
+    ordered = sorted(events, key=lambda item: (item["start"], item["note"]))[:limit]
+    if not ordered:
+        return []
+    first_pitch = ordered[0]["note"]
+    first_start = ordered[0]["start"]
+    return [
+        (
+            event["note"] - first_pitch,
+            round((event["start"] - first_start) / TICKS, 2),
+            round(event["duration"] / TICKS, 2),
+        )
+        for event in ordered
+    ]
+
+
+def rhythm_signature(events, limit=None):
+    ordered = sorted(events, key=lambda item: (item["start"], item["note"]))
+    if limit:
+        ordered = ordered[:limit]
+    return [
+        (round((event["start"] % BAR_TICKS) / TICKS, 2), round(event["duration"] / TICKS, 2))
+        for event in ordered
+    ]
+
+
+def signature_similarity(a, b):
+    if not a or not b:
+        return 0.0
+    length = min(len(a), len(b))
+    matches = sum(1 for idx in range(length) if a[idx] == b[idx])
+    return matches / max(len(a), len(b))
+
+
+def section_by_key(sections, key):
+    return next((section for section in sections if section.key == key), None)
+
+
+def chord_for_event(section: SectionIdea, event):
+    if not section.chords:
+        return None
+    local_bar = event_bar(section, event)
+    return section.chords[local_bar % len(section.chords)]
+
+
+def strong_beat(event):
+    beat = event_beat(event)
+    return beat in (0.0, 1.0, 2.0, 3.0) or abs(beat - round(beat)) < 0.01
+
+
+def weighted_hook_total(scores):
+    return clamp_score(
+        scores["motif_clarity"] * 0.20
+        + scores["hummability"] * 0.20
+        + scores["rhythmic_identity"] * 0.15
+        + scores["chord_tone_targeting"] * 0.15
+        + scores["phrase_shape"] * 0.15
+        + scores["repetition_variation"] * 0.10
+        + scores["edm_suitability"] * 0.05
+    )
+
+
 def score_hook_identity(option_id: str, sections: list[SectionIdea], hook_identity):
     melody = [event for section in sections for event in section.melody_events]
     if not melody:
-        return {"total": 0, "motif_clarity": 0, "rhythmic_identity": 0, "hummability": 0, "singability": 0, "chord_tone_targeting": 0, "phrase_shape": 0, "repetition_variation": 0, "edm_suitability": 0}
+        return {"total": 0, "motif_clarity": 0, "rhythmic_identity": 0, "hummability": 0, "singability": 0, "chord_tone_targeting": 0, "phrase_shape": 0, "repetition_variation": 0, "edm_suitability": 0, "score_explanation": {}, "score_confidence": "rule_based_structural_analysis"}
+    section_map = {section.key: section for section in sections}
+    intro = section_map.get("intro")
+    breakdown = section_map.get("breakdown")
+    drop = section_map.get("drop")
+    drop_events = sorted((drop.melody_events if drop else []), key=lambda item: (item["start"], item["note"]))
+    intro_events = sorted((intro.melody_events if intro else []), key=lambda item: (item["start"], item["note"]))
+    breakdown_events = sorted((breakdown.melody_events if breakdown else []), key=lambda item: (item["start"], item["note"]))
     pitches = [event["note"] for event in melody]
     starts = [event["start"] % BAR_TICKS for event in melody]
     durations = [event["duration"] for event in melody]
-    unique_pitches = len(set(pitches))
-    repeated_rhythm = len(starts) - len(set(starts))
-    long_endings = sum(1 for event in melody if event["duration"] >= tick(1.0))
-    range_span = max(pitches) - min(pitches)
-    root_overuse = max((pitches.count(pitch) for pitch in set(pitches)), default=0) / max(1, len(pitches))
-    motif_len = len(hook_identity["roles"])
-    motif_clarity = clamp(72 + (12 if 3 <= motif_len <= 7 else -10) + min(10, repeated_rhythm // 2) - (12 if root_overuse > 0.42 else 0), 0, 100)
-    rhythmic_identity = clamp(58 + len(set(starts)) * 5 + len(set(durations)) * 6 - (14 if len(set(durations)) <= 1 else 0), 0, 100)
     intervals = [abs(pitches[idx] - pitches[idx - 1]) for idx in range(1, len(pitches))]
+    motif_len = len(hook_identity["roles"])
+    motif_sig = motif_signature(drop_events or melody, motif_len)
+    drop_windows = [drop_events[idx:idx + motif_len] for idx in range(0, max(0, len(drop_events) - motif_len + 1), max(1, motif_len))]
+    motif_matches = sum(1 for window in drop_windows[1:] if signature_similarity(motif_sig, motif_signature(window, motif_len)) >= 0.55)
+    intro_reference = signature_similarity(motif_sig[:max(1, min(3, len(motif_sig)))], motif_signature(intro_events, max(1, min(3, motif_len))))
+    breakdown_reference = signature_similarity(motif_sig[:max(1, min(4, len(motif_sig)))], motif_signature(breakdown_events, max(1, min(4, motif_len))))
+    unrelated_penalty = max(0, len(set(pitches)) - motif_len - 3) * 2
+    motif_clarity = clamp_score(54 + (18 if 3 <= motif_len <= 7 else -12) + motif_matches * 5 + intro_reference * 9 + breakdown_reference * 9 - unrelated_penalty)
+
+    rhythm_sig = rhythm_signature(drop_events, motif_len)
+    rhythm_windows = [rhythm_signature(window) for window in drop_windows if window]
+    rhythm_repeats = sum(1 for sig in rhythm_windows[1:] if signature_similarity(rhythm_sig, sig) >= 0.6)
+    unique_durations = len(set(round(duration / TICKS, 2) for duration in durations))
+    unique_starts = len(set(round(start / TICKS, 2) for start in starts))
+    syncopated = sum(1 for start in starts if (start % TICKS) not in (0, TICKS // 2))
+    density = len(melody) / max(1, sum(section.section_length_bars for section in sections))
+    rhythm_complexity_penalty = max(0, unique_starts - 8) * 2 + max(0, syncopated - 48) * 0.25
+    rhythmic_identity = min(96, clamp_score(42 + rhythm_repeats * 3.5 + unique_durations * 4 + min(9, unique_starts * 1.1) + min(7, syncopated * 0.12) - (16 if unique_durations <= 1 else 0) - max(0, density - 6) * 5 - rhythm_complexity_penalty))
+
+    range_span = max(pitches) - min(pitches)
     large_leaps = sum(1 for interval in intervals if interval > 12)
-    hummability = clamp(88 - large_leaps * 5 - max(0, range_span - 22) + (8 if long_endings else 0) - (8 if len(set(starts)) > 7 else 0), 0, 100)
-    chord_tone_targeting = 82
-    phrase_shape = clamp(62 + (10 if range_span >= 7 else -8) + min(18, long_endings * 2), 0, 100)
-    repetition_variation = clamp(68 + min(18, repeated_rhythm // 2) - (10 if root_overuse > 0.45 else 0), 0, 100)
-    edm_suitability = clamp(74 + (10 if any(section.key == "drop" and section.melody_events for section in sections) else -15) + (6 if range_span <= 24 else -6), 0, 100)
-    score = round(
-        motif_clarity * 0.20
-        + rhythmic_identity * 0.15
-        + hummability * 0.20
-        + chord_tone_targeting * 0.15
-        + phrase_shape * 0.15
-        + repetition_variation * 0.10
-        + edm_suitability * 0.05
-    )
-    if option_id == "classic_reliable":
-        score += 2
-    elif option_id == "emotional_cinematic":
-        score += 1
-    elif option_id == "experimental_modern":
-        score += 6
-    total = clamp(score, 0, 100)
-    return {
-        "total": total,
+    avg_interval = sum(intervals) / max(1, len(intervals))
+    stepwise_ratio = sum(1 for interval in intervals if interval <= 5) / max(1, len(intervals))
+    final_pitch = drop_events[-1]["note"] if drop_events else melody[-1]["note"]
+    final_repeats_motif = final_pitch % 12 in {note % 12 for note in hook_identity.get("midi_notes", [])}
+    hummability = clamp_score(72 + stepwise_ratio * 20 - large_leaps * 5 - max(0, range_span - 15) * 1.6 - max(0, avg_interval - 7) * 2 + (7 if final_repeats_motif else -5))
+
+    strong_hits = 0
+    strong_total = 0
+    ending_hits = 0
+    ending_total = 0
+    tension_count = 0
+    resolved_tension = 0
+    for section in sections:
+        ordered = sorted(section.melody_events, key=lambda item: (item["start"], item["note"]))
+        for idx, event in enumerate(ordered):
+            chord = chord_for_event(section, event)
+            if not chord:
+                continue
+            chord_pcs = set(chord.required_pcs)
+            is_hit = event["note"] % 12 in chord_pcs
+            if strong_beat(event):
+                strong_total += 1
+                strong_hits += 1 if is_hit else 0
+            local_beat = event_beat(event)
+            if event["duration"] >= tick(0.75) or local_beat >= 3.0:
+                ending_total += 1
+                ending_hits += 1 if is_hit else 0
+            if not is_hit:
+                tension_count += 1
+                if idx + 1 < len(ordered) and ordered[idx + 1]["note"] % 12 in chord_pcs:
+                    resolved_tension += 1
+    strong_ratio = strong_hits / max(1, strong_total)
+    ending_ratio = ending_hits / max(1, ending_total)
+    tension_resolution = resolved_tension / max(1, tension_count)
+    chord_tone_targeting = clamp_score(46 + strong_ratio * 26 + ending_ratio * 18 + tension_resolution * 10 - max(0, tension_count - 4) * (3 if option_id != "experimental_modern" else 1.2))
+
+    phrase_peaks = []
+    for section in sections:
+        for block_start in range(0, section.section_length_bars, 4):
+            block = [event["note"] for event in section.melody_events if block_start <= event_bar(section, event) < block_start + 4]
+            if block:
+                phrase_peaks.append(max(block) - min(block))
+    high_point = max(pitches)
+    high_point_late = any(event["note"] == high_point and (event["start"] - (drop.start_tick if drop else 0)) >= BAR_TICKS * 4 for event in drop_events)
+    final_long = bool(drop_events and drop_events[-1]["duration"] >= tick(0.75))
+    contour_changes = sum(1 for idx in range(2, len(pitches)) if (pitches[idx] - pitches[idx - 1]) * (pitches[idx - 1] - pitches[idx - 2]) < 0)
+    phrase_shape = clamp_score(50 + min(16, sum(phrase_peaks) / max(1, len(phrase_peaks))) + (12 if high_point_late else 0) + (10 if final_long else 0) + min(10, contour_changes) - (10 if range_span < 5 else 0))
+
+    exact_repetition = sum(1 for window in drop_windows[1:] if signature_similarity(motif_sig, motif_signature(window, motif_len)) >= 0.9)
+    related_variation = sum(1 for window in drop_windows[1:] if 0.45 <= signature_similarity(motif_sig, motif_signature(window, motif_len)) < 0.9)
+    section_development = (1 if intro_reference > 0.3 else 0) + (1 if breakdown_reference > 0.3 else 0)
+    repetition_variation = clamp_score(50 + exact_repetition * 8 + related_variation * 7 + section_development * 8 - (10 if exact_repetition > 5 and related_variation == 0 else 0) - (12 if exact_repetition == 0 else 0))
+
+    drop_density = len(drop_events) / max(1, drop.section_length_bars if drop else 1)
+    bar_aligned = sum(1 for event in drop_events if event_beat(event) in (0.0, 1.0, 2.0, 3.0)) / max(1, len(drop_events))
+    register_ok = 68 <= (sum(drop_event["note"] for drop_event in drop_events) / max(1, len(drop_events))) <= 90 if drop_events else False
+    phrase_cell_count = len({(event_bar(drop, event) // 4, round(event_beat(event), 2)) for event in drop_events}) if drop else 0
+    edm_suitability = clamp_score(55 + (14 if drop_events else -20) + bar_aligned * 10 + (8 if register_ok else -8) + (8 if 2 <= drop_density <= 7 else -8) + min(8, phrase_cell_count / 4))
+
+    scores = {
         "motif_clarity": motif_clarity,
         "rhythmic_identity": rhythmic_identity,
         "hummability": hummability,
-        "singability": hummability,
         "chord_tone_targeting": chord_tone_targeting,
         "phrase_shape": phrase_shape,
         "repetition_variation": repetition_variation,
         "edm_suitability": edm_suitability,
+    }
+    total = weighted_hook_total(scores)
+    explanations = {
+        "motif_clarity": f"Motif length {motif_len}, drop repeats {motif_matches}, intro similarity {intro_reference:.2f}, breakdown similarity {breakdown_reference:.2f}.",
+        "rhythmic_identity": f"{unique_durations} duration values, {rhythm_repeats} repeated rhythm cells, density {density:.2f} notes/bar, syncopated attacks {syncopated}.",
+        "hummability": f"Range {range_span} semitones, average interval {avg_interval:.2f}, stepwise ratio {stepwise_ratio:.2f}, large leaps {large_leaps}.",
+        "chord_tone_targeting": f"Strong-beat chord-tone ratio {strong_ratio:.2f}, phrase-ending ratio {ending_ratio:.2f}, tension resolution {tension_resolution:.2f}.",
+        "phrase_shape": f"High point {'late in drop' if high_point_late else 'not late'}, contour changes {contour_changes}, final note {'held' if final_long else 'short'}.",
+        "repetition_variation": f"Exact repeats {exact_repetition}, related variations {related_variation}, section development references {section_development}.",
+        "edm_trance_suitability": f"Drop density {drop_density:.2f} notes/bar, bar alignment {bar_aligned:.2f}, register {'suitable' if register_ok else 'less suitable'}.",
+    }
+    return {
+        "total": total,
+        **scores,
+        "singability": hummability,
+        "score_explanation": explanations,
+        "score_confidence": "rule_based_structural_analysis",
     }
 
 
@@ -860,6 +1006,8 @@ def build_hook_metadata(option_id: str, hook_identity, score_detail, strongest_h
         "intentional_tension_notes": hook_identity["intentional_tension_notes"],
         "recommended_synth_role": hook_identity["recommended_synth_role"],
         "weaknesses": hook_weaknesses(score_detail),
+        "score_explanation": score_detail.get("score_explanation", {}),
+        "score_confidence": score_detail.get("score_confidence", "rule_based_structural_analysis"),
         "option_type": option_id,
     }
 
@@ -881,6 +1029,8 @@ def build_melody_audit(option_id: str, hook_identity, score_detail, audition, se
         "selected_reason": audition["selected_reason"],
         "weaknesses": hook_weaknesses(score_detail),
         "recommended_use": hook_identity["recommended_synth_role"],
+        "score_explanation": score_detail.get("score_explanation", {}),
+        "score_confidence": score_detail.get("score_confidence", "rule_based_structural_analysis"),
     }
 
 

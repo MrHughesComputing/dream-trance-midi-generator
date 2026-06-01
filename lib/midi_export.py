@@ -389,8 +389,21 @@ def section_validation_summary(option):
     ]
 
 
+def audit_weighted_total(audit):
+    return round(
+        audit.get("motif_clarity_score", 0) * 0.20
+        + audit.get("hummability_score", 0) * 0.20
+        + audit.get("rhythmic_identity_score", 0) * 0.15
+        + audit.get("chord_tone_targeting_score", 0) * 0.15
+        + audit.get("phrase_shape_score", 0) * 0.15
+        + audit.get("repetition_variation_score", 0) * 0.10
+        + audit.get("edm_trance_suitability_score", 0) * 0.05
+    )
+
+
 def melody_validation_issues(result):
     issues = []
+    score_vectors = []
     for option in result.options:
         metadata = getattr(option, "hook_metadata", {}) or {}
         audit = getattr(option, "melody_audit", {}) or {}
@@ -414,8 +427,35 @@ def melody_validation_issues(result):
             issues.append(f"{option.id}: drop repeated motif missing")
         if metadata.get("intentional_tension_notes") and option.id != "experimental_modern":
             issues.append(f"{option.id}: tension notes labelled outside experimental option")
+        if option.id == "experimental_modern" and metadata.get("intentional_tension_notes"):
+            for tension in metadata["intentional_tension_notes"]:
+                if not tension.get("reason") or not tension.get("resolved_to"):
+                    issues.append(f"{option.id}: experimental tension note lacks explanation or resolution")
+        explanations = audit.get("score_explanation", {})
+        required_explanations = ("motif_clarity", "rhythmic_identity", "hummability", "chord_tone_targeting", "phrase_shape", "repetition_variation", "edm_trance_suitability")
+        for key in required_explanations:
+            if not explanations.get(key):
+                issues.append(f"{option.id}: missing score explanation for {key}")
+        score_values = [
+            audit.get("motif_clarity_score"),
+            audit.get("hummability_score"),
+            audit.get("rhythmic_identity_score"),
+            audit.get("chord_tone_targeting_score"),
+            audit.get("phrase_shape_score"),
+            audit.get("repetition_variation_score"),
+            audit.get("edm_trance_suitability_score"),
+        ]
+        if any(value is None or value < 0 or value > 100 for value in score_values):
+            issues.append(f"{option.id}: score outside 0-100 range")
+        if audit and audit.get("hook_score") != audit_weighted_total(audit):
+            issues.append(f"{option.id}: total hook score does not match weighted sub-scores")
+        if audit.get("rhythmic_identity_score") == 100 and "100" not in explanations.get("rhythmic_identity", ""):
+            issues.append(f"{option.id}: rhythm score is 100 without explicit justification")
+        score_vectors.append(tuple(score_values))
         if not any(section.melody_events for section in option.sections):
             issues.append(f"{option.id}: selected melody is empty")
+    if len(set(score_vectors)) <= 1 and len(score_vectors) > 1:
+        issues.append("all options have identical hook sub-score vectors")
     return issues
 
 
