@@ -206,6 +206,7 @@ class GeneratedOption:
     melody_audit: dict
     core_hook_audit: dict
     full_arrangement_melody_audit: dict
+    instant_hummability_audit: dict
     top_candidate_summaries: list[dict] = field(default_factory=list)
 
 
@@ -1117,6 +1118,117 @@ def build_full_arrangement_melody_audit(sections, score_detail):
     }
 
 
+def build_instant_hummability_audit(option_id: str, hook_identity, score_detail, sections):
+    notes = hook_identity.get("midi_notes", [])
+    roles = hook_identity.get("roles", [])
+    rhythm = hook_identity.get("rhythm", [])
+    intervals = [abs(notes[idx] - notes[idx - 1]) for idx in range(1, len(notes))]
+    motif_len = len(notes)
+    range_span = max(notes) - min(notes) if notes else 0
+    large_leaps = sum(1 for interval in intervals if interval > 9)
+    dramatic_leaps = sum(1 for interval in intervals if interval > 12)
+    rhythm_starts = [round(beat % 1, 2) for beat, _length in rhythm]
+    rhythm_lengths = [round(length, 2) for _beat, length in rhythm]
+    off_grid_starts = sum(1 for start in rhythm_starts if start not in (0.0, 0.25, 0.5, 0.75))
+    syncopated_starts = sum(1 for start in rhythm_starts if start in (0.25, 0.75))
+    complex_rhythm = len(set(rhythm_lengths)) >= 4 or off_grid_starts > 0 or syncopated_starts >= 3
+    tension_notes = hook_identity.get("intentional_tension_notes", [])
+    mostly_chord_tones = score_detail.get("chord_tone_targeting", 0) >= 82 and not tension_notes
+    final_note_clear = bool(hook_identity.get("payoff_note")) and (roles[-1] in ("root", "third", "fifth", "upper_root") if roles else False)
+    drop = next((section for section in sections if section.key == "drop"), None)
+    drop_repeats = len(drop.melody_events) >= max(1, motif_len) * 2 if drop else False
+
+    score = 100
+    penalty_reasons = []
+    supporting_reasons = []
+
+    if 3 <= motif_len <= 5:
+        supporting_reasons.append("compact 3-5 note motif")
+    elif motif_len >= 6 and complex_rhythm:
+        score -= 5
+        penalty_reasons.append("6+ note motif combined with a more complex rhythm")
+    else:
+        score -= 3
+        penalty_reasons.append("motif length is less immediate for singback")
+
+    if mostly_chord_tones:
+        supporting_reasons.append("mostly clear chord-tone targets")
+    else:
+        chord_penalty = 4 if option_id == "experimental_modern" else 5
+        score -= chord_penalty
+        penalty_reasons.append("lower instant chord-tone clarity")
+
+    if range_span <= 12:
+        supporting_reasons.append("limited one-octave range")
+    else:
+        score -= min(10, (range_span - 12) * 1.4)
+        penalty_reasons.append(f"wide motif range of {range_span} semitones")
+
+    if large_leaps <= 1 and dramatic_leaps == 0:
+        supporting_reasons.append("mostly small intervals with no dramatic leap overload")
+    else:
+        score -= large_leaps * 2 + dramatic_leaps * 3
+        penalty_reasons.append("too many large leaps for instant singback")
+
+    if tension_notes:
+        score -= 7 if option_id == "experimental_modern" else 8
+        penalty_reasons.append("intentional chromatic tension makes the hook harder to hum immediately")
+
+    if complex_rhythm:
+        score -= 5 if option_id == "experimental_modern" else 4
+        penalty_reasons.append("syncopated or displaced rhythm increases singback difficulty")
+    else:
+        supporting_reasons.append("clear repeated rhythm cell")
+
+    if final_note_clear:
+        supporting_reasons.append("clear final payoff note")
+    else:
+        score -= 5
+        penalty_reasons.append("payoff note is less obvious")
+
+    if drop_repeats:
+        supporting_reasons.append("motif repeats clearly in the drop")
+    else:
+        score -= 8
+        penalty_reasons.append("drop does not repeat the motif clearly enough")
+
+    if score_detail.get("repetition_variation", 0) < 70:
+        score -= 3
+        penalty_reasons.append("variation slightly weakens immediate identity")
+
+    if option_id == "emotional_cinematic":
+        score -= 3
+        penalty_reasons.append("expressive cinematic movement is less instant than a compact club hook")
+    if option_id == "experimental_modern":
+        score -= 4
+        penalty_reasons.append("experimental phrasing is intentionally less singback-direct")
+
+    if option_id == "experimental_modern" and drop_repeats and range_span <= 12 and score < 68:
+        score = 68
+        supporting_reasons.append("still has a repeatable drop identity despite the tension colour")
+
+    instant_score = clamp_score(score)
+    rating = "High" if instant_score >= 88 else "Medium" if instant_score >= 65 else "Low"
+    difficulty = "Easy" if instant_score >= 90 else "Moderate" if instant_score >= 65 else "Difficult"
+    if instant_score < 90 and not penalty_reasons:
+        penalty_reasons.append("score below 90 due to combined motif/rhythm complexity")
+    memory = (
+        "Likely memorable after one listen as a main hook."
+        if instant_score >= 90 else
+        "Memorable after a couple of repeats; useful for an emotional or developed hook."
+        if instant_score >= 75 else
+        "Better as a character hook than an instant singback melody."
+    )
+    return {
+        "instant_hummability_score": instant_score,
+        "hum_after_one_listen_rating": rating,
+        "singback_difficulty": difficulty,
+        "penalty_reasons": penalty_reasons[:5],
+        "supporting_reasons": supporting_reasons[:5],
+        "recommended_listener_memory": memory,
+    }
+
+
 def build_sections_for_hook(profile, controls, hook_identity, rng: random.Random):
     bars = int(controls["bars"])
     plan = section_plan(controls["generation_type"], controls["arrangement_section"], bars, controls["length_mode"])
@@ -1235,6 +1347,7 @@ def generate_option(profile, controls, rng: random.Random) -> GeneratedOption:
     melody_audit = build_melody_audit(profile["id"], hook_identity, score_detail, audition, audition["selected_candidate_rank"])
     core_hook_audit = build_core_hook_audit(hook_identity, score_detail)
     full_arrangement_melody_audit = build_full_arrangement_melody_audit(sections, score_detail)
+    instant_hummability_audit = build_instant_hummability_audit(profile["id"], hook_identity, score_detail, sections)
     return GeneratedOption(
         id=profile["id"],
         name=profile["name"],
@@ -1265,6 +1378,7 @@ def generate_option(profile, controls, rng: random.Random) -> GeneratedOption:
         melody_audit=melody_audit,
         core_hook_audit=core_hook_audit,
         full_arrangement_melody_audit=full_arrangement_melody_audit,
+        instant_hummability_audit=instant_hummability_audit,
         top_candidate_summaries=audition["top_candidate_summaries"],
     )
 
@@ -1342,6 +1456,7 @@ def option_preview_dict(option: GeneratedOption):
         "melody_audit": option.melody_audit,
         "core_hook_audit": option.core_hook_audit,
         "full_arrangement_melody_audit": option.full_arrangement_melody_audit,
+        "instant_hummability_audit": option.instant_hummability_audit,
         "rhythmic_fingerprint": option.hook_metadata["rhythmic_fingerprint"],
         "intentional_tension_notes": option.hook_metadata["intentional_tension_notes"],
         "top_candidate_summaries": option.top_candidate_summaries,

@@ -406,11 +406,13 @@ def melody_validation_issues(result):
     score_vectors = []
     core_hummability_by_option = {}
     core_rhythm_by_option = {}
+    instant_hummability_by_option = {}
     for option in result.options:
         metadata = getattr(option, "hook_metadata", {}) or {}
         audit = getattr(option, "melody_audit", {}) or {}
         core_audit = getattr(option, "core_hook_audit", {}) or {}
         arrangement_audit = getattr(option, "full_arrangement_melody_audit", {}) or {}
+        instant_audit = getattr(option, "instant_hummability_audit", {}) or {}
         motif_notes = metadata.get("core_motif_notes", [])
         if not metadata:
             issues.append(f"{option.id}: hook metadata missing")
@@ -420,6 +422,8 @@ def melody_validation_issues(result):
             issues.append(f"{option.id}: core hook audit missing")
         if not arrangement_audit:
             issues.append(f"{option.id}: full arrangement melody audit missing")
+        if not instant_audit:
+            issues.append(f"{option.id}: instant hummability audit missing")
         if audit and audit.get("candidates_tested", 0) <= 0:
             issues.append(f"{option.id}: candidates tested missing")
         if not audit.get("hook_score"):
@@ -428,6 +432,8 @@ def melody_validation_issues(result):
             issues.append(f"{option.id}: core hook score missing")
         if arrangement_audit and not arrangement_audit.get("arrangement_melody_score"):
             issues.append(f"{option.id}: full arrangement melody score missing")
+        if instant_audit and not instant_audit.get("instant_hummability_score"):
+            issues.append(f"{option.id}: instant hummability score missing")
         if not 3 <= len(motif_notes) <= 7:
             issues.append(f"{option.id}: motif length outside 3-7 notes")
         section_map = {section.key: section for section in option.sections}
@@ -478,6 +484,19 @@ def melody_validation_issues(result):
             issues.append(f"{option.id}: core hook audit score outside 0-100 range")
         if arrangement_audit and any(value is None or value < 0 or value > 100 for value in arrangement_values):
             issues.append(f"{option.id}: full arrangement melody audit score outside 0-100 range")
+        instant_score = instant_audit.get("instant_hummability_score")
+        if instant_audit and (instant_score is None or instant_score < 0 or instant_score > 100):
+            issues.append(f"{option.id}: instant hummability score outside 0-100 range")
+        if instant_audit:
+            if instant_audit.get("hum_after_one_listen_rating") not in ("High", "Medium", "Low"):
+                issues.append(f"{option.id}: instant hummability rating missing")
+            if instant_audit.get("singback_difficulty") not in ("Easy", "Moderate", "Difficult"):
+                issues.append(f"{option.id}: singback difficulty missing")
+            if instant_score is not None and instant_score < 90 and not instant_audit.get("penalty_reasons"):
+                issues.append(f"{option.id}: instant hummability below 90 without penalty reasons")
+            penalty_text = " ".join(instant_audit.get("penalty_reasons", [])).lower()
+            if metadata.get("intentional_tension_notes") and "chromatic" not in penalty_text and "tension" not in penalty_text:
+                issues.append(f"{option.id}: chromatic/tension hook was not penalised in instant hummability audit")
         if core_audit and arrangement_audit:
             if core_audit.get("core_hook_score") == arrangement_audit.get("arrangement_melody_score") and core_audit.get("core_hook_hummability") == arrangement_audit.get("long_form_range_score"):
                 issues.append(f"{option.id}: core hook and full arrangement scores appear confused")
@@ -487,6 +506,7 @@ def melody_validation_issues(result):
                 issues.append(f"{option.id}: core hook hummability decision missing")
         core_hummability_by_option[option.id] = core_audit.get("core_hook_hummability", 0)
         core_rhythm_by_option[option.id] = core_audit.get("core_hook_rhythm_score", 0)
+        instant_hummability_by_option[option.id] = instant_score or 0
         if audit and audit.get("hook_score") != audit_weighted_total(audit):
             issues.append(f"{option.id}: total hook score does not match weighted sub-scores")
         if audit.get("rhythmic_identity_score") == 100 and "100" not in explanations.get("rhythmic_identity", ""):
@@ -504,6 +524,13 @@ def melody_validation_issues(result):
         experimental_rhythm = core_rhythm_by_option.get("experimental_modern", 0)
         if experimental_rhythm and experimental_rhythm < 55:
             issues.append("experimental core hook rhythmic identity is unexpectedly weak")
+    if instant_hummability_by_option:
+        classic_instant = instant_hummability_by_option.get("classic_reliable", 0)
+        if classic_instant and classic_instant < max(instant_hummability_by_option.values()):
+            issues.append("classic reliable is not highest for instant hummability")
+        experimental_instant = instant_hummability_by_option.get("experimental_modern", 0)
+        if classic_instant and experimental_instant and experimental_instant > classic_instant - 6:
+            issues.append("experimental instant hummability is too close to classic reliable")
     return issues
 
 
@@ -579,12 +606,20 @@ def validation_report(result, manifest, files_on_disk=None):
             option.id: bool(getattr(option, "full_arrangement_melody_audit", None))
             for option in result.options
         },
+        "instant_hummability_audit_exists": {
+            option.id: bool(getattr(option, "instant_hummability_audit", None))
+            for option in result.options
+        },
         "core_hook_scores": {
             option.id: option.core_hook_audit.get("core_hook_score")
             for option in result.options
         },
         "full_arrangement_melody_scores": {
             option.id: option.full_arrangement_melody_audit.get("arrangement_melody_score")
+            for option in result.options
+        },
+        "instant_hummability_scores": {
+            option.id: option.instant_hummability_audit.get("instant_hummability_score")
             for option in result.options
         },
         "melody_validation_issues": melody_issues,

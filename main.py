@@ -16769,7 +16769,9 @@ def render_option_preview(result, download_href: str, download_filename: str = "
         preview = option_preview_dict(option)
         core_audit = preview.get("core_hook_audit", {})
         arrangement_audit = preview.get("full_arrangement_melody_audit", {})
+        instant_audit = preview.get("instant_hummability_audit", {})
         hook_metadata = preview.get("hook_metadata", {})
+        instant_penalties = instant_audit.get("penalty_reasons", [])
         section_html = []
         for section in preview["sections"]:
             notes = "<br>".join(section["notes"])
@@ -16802,6 +16804,10 @@ def render_option_preview(result, download_href: str, download_filename: str = "
             f'<strong>Hummability:</strong> {hook_metadata.get("hummability_rating", "Unrated")} '
             f'({core_audit.get("core_hook_hummability", 0)}/100) | '
             f'<strong>Best use:</strong> {hook_metadata.get("recommended_synth_role", preview.get("melody_audit", {}).get("recommended_use", "lead/pluck hook"))}</p>'
+            f'<p><strong>Instant Hummability:</strong> {instant_audit.get("instant_hummability_score", 0)}/100 | '
+            f'<strong>Rating:</strong> {instant_audit.get("hum_after_one_listen_rating", "Unrated")} | '
+            f'<strong>Difficulty:</strong> {instant_audit.get("singback_difficulty", "Unrated")}<br>'
+            f'<strong>Penalty:</strong> {", ".join(instant_penalties) if instant_penalties else "none"}</p>'
             f'<p class="notes">Core motif notes: {", ".join(preview["core_motif_notes"])}<br>'
             f'Core rhythm beats: {", ".join(str(beat) for beat in preview["core_motif_rhythm"])}<br>'
             f'Rhythmic fingerprint: {preview["rhythmic_fingerprint"]}<br>'
