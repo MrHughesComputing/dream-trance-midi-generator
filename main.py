@@ -39,6 +39,7 @@ GENERATED_PACKS = {}
 DEFAULT_GUI_VALUES = {
     "bpm": 138,
     "key": "F#",
+    "key_mode": "minor",
     "progression": "uplifting",
     "arrangement": "extended",
     "density": "medium",
@@ -624,7 +625,11 @@ NOTE = {
     "C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
     "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11,
 }
-SCALE = [0, 2, 3, 5, 7, 8, 10]
+SCALE_INTERVALS = {
+    "minor": [0, 2, 3, 5, 7, 8, 10],
+    "major": [0, 2, 4, 5, 7, 9, 11],
+}
+SCALE = SCALE_INTERVALS["minor"]
 LEVEL_FACTOR = {"low": 0.88, "medium": 1.0, "high": 1.12}
 VARIATION_SPREAD = {"low": 0, "medium": 1, "high": 2}
 HOOK_ARCHETYPES = ["declarative", "yearning", "driving", "open"]
@@ -652,6 +657,7 @@ ARP_PATTERN_NAMES = {
 }
 
 KeyType = Literal["E", "F", "F#", "G", "G#", "A", "A#", "C", "D"]
+KeyModeType = Literal["minor", "major"]
 ProgressionType = Literal["uplifting", "classic", "festival", "hopeful", "progressive"]
 DensityType = Literal["low", "medium", "high"]
 VariationType = Literal["low", "medium", "high"]
@@ -770,7 +776,7 @@ HTML = """
       <div class="hero-side">
         <div class="stat">Blueprint-driven stems<strong>Chords, pads, piano, arp, bass, drums, lead, and vocal all follow one authored plan.</strong></div>
         <div class="stat">Export package<strong>Combined arrangement MIDI plus aligned per-stem MIDI files in one ZIP.</strong></div>
-        <div class="stat">Best first test<strong>138 BPM, D or F#, uplifting, medium density, medium variation.</strong></div>
+        <div class="stat">Best first test<strong>138 BPM, F# minor or D major, uplifting, medium density, medium variation.</strong></div>
       </div>
     </section>
     <section class="main">
@@ -786,6 +792,10 @@ HTML = """
             <div class="field">
               <label for="key">Key</label>
               <select id="key" name="key">__KEYS__</select>
+            </div>
+            <div class="field">
+              <label for="key_mode">Major / Minor</label>
+              <select id="key_mode" name="key_mode">__KEY_MODES__</select>
             </div>
             <div class="field">
               <label for="progression">Progression</label>
@@ -1249,6 +1259,13 @@ def page() -> str:
         "".join(
             f"<option{' selected' if key == DEFAULT_GUI_VALUES['key'] else ''}>{key}</option>"
             for key in KEY_OPTIONS
+        ),
+    )
+    html = html.replace(
+        "__KEY_MODES__",
+        "".join(
+            f"<option value=\"{mode}\"{' selected' if mode == DEFAULT_GUI_VALUES['key_mode'] else ''}>{mode.title()}</option>"
+            for mode in ("minor", "major")
         ),
     )
     html = html.replace(
@@ -3116,8 +3133,30 @@ def constrain_phrase_to_range(phrase, target_range):
     return [(beat, length, clamp(pitch, low, high)) for beat, length, pitch in phrase]
 
 
-def note(root: str, degree: int, octave: int = 4) -> int:
-    return NOTE[root] + SCALE[(degree - 1) % 7] + (octave + 1) * 12
+def key_parts(key: str, mode: str = "minor") -> tuple[str, str]:
+    parts = (key or DEFAULT_GUI_VALUES["key"]).strip().split()
+    tonic = parts[0] if parts else DEFAULT_GUI_VALUES["key"]
+    quality = parts[1].lower() if len(parts) > 1 else (mode or DEFAULT_GUI_VALUES["key_mode"]).lower()
+    if tonic not in NOTE:
+        tonic = DEFAULT_GUI_VALUES["key"]
+    if quality not in SCALE_INTERVALS:
+        quality = DEFAULT_GUI_VALUES["key_mode"]
+    return tonic, quality
+
+
+def key_label(key: str, mode: str = "minor") -> str:
+    tonic, quality = key_parts(key, mode)
+    return f"{tonic} {quality}"
+
+
+def scale_intervals_for_mode(mode: str):
+    return SCALE_INTERVALS.get((mode or "minor").lower(), SCALE_INTERVALS["minor"])
+
+
+def note(root: str, degree: int, octave: int = 4, mode: str = "minor") -> int:
+    tonic, quality = key_parts(root, mode)
+    intervals = scale_intervals_for_mode(quality)
+    return NOTE[tonic] + intervals[(degree - 1) % 7] + (octave + 1) * 12
 
 
 def add_event(events, start_tick: int, pitch: int, length_tick: int, velocity: int = 90, channel: int = 0):
@@ -6326,7 +6365,7 @@ def arrange_sections(arrangement: str, blueprint=None):
     return sections
 
 
-def progression_chords(root: str, progression_name: str):
+def progression_chords(root: str, progression_name: str, mode: str = "minor"):
     triad_map = {
         1: (1, 3, 5),
         2: (2, 4, 6),
@@ -6341,7 +6380,7 @@ def progression_chords(root: str, progression_name: str):
         tones = []
         for scale_degree in triad_map[degree]:
             octave = 4 if scale_degree not in (6, 7) else 3
-            tones.append(note(root, scale_degree, octave))
+            tones.append(note(root, scale_degree, octave, mode=mode))
         tones = sorted(tones)
         chords.append({
             "degree": degree,
@@ -7697,7 +7736,7 @@ def build_song_blueprint(rng: random.Random, progression: str, variation: str, d
         apply_identity_profile_to_blueprint(blueprint, identity_profile, progression, genre=progression)
     return blueprint
 
-def build_identity_blueprint(root: str, rng: random.Random, variation: str, blueprint):
+def build_identity_blueprint(root: str, rng: random.Random, variation: str, blueprint, mode: str = "minor"):
     spread = VARIATION_SPREAD[variation]
     lead_archetype = blueprint["lead_archetype"]
     resolution_bias = blueprint["lead_resolution_bias"]
@@ -7721,7 +7760,7 @@ def build_identity_blueprint(root: str, rng: random.Random, variation: str, blue
         motif_degrees[2] = rng.choice([1, 2, 6])
     if spread == 2 and rng.random() > 0.45:
         motif_degrees[3] = rng.choice([5, 6, 7])
-    theme_anchor = note(root, blueprint["theme_anchor_degree"], 5)
+    theme_anchor = note(root, blueprint["theme_anchor_degree"], 5, mode=mode)
     if blueprint["hook_recall_style"] == "direct_echo":
         theme_rhythm = [(0.0, 0.5), (1.0, 0.45), (2.0, 0.45), (3.0, 0.7)]
     elif blueprint["hook_recall_style"] == "interval_memory":
@@ -7731,15 +7770,15 @@ def build_identity_blueprint(root: str, rng: random.Random, variation: str, blue
     else:
         theme_rhythm = [(0.0, 0.9), (2.25, 0.8)]
     return {
-        "anchor": note(root, motif_degrees[0], 5),
-        "support": note(root, motif_degrees[1], 5),
-        "lift": note(root, motif_degrees[2], 6),
-        "resolve": note(root, motif_degrees[3], 5),
-        "counter": note(root, 3, 4),
-        "vocal_anchor": note(root, 1, 5),
+        "anchor": note(root, motif_degrees[0], 5, mode=mode),
+        "support": note(root, motif_degrees[1], 5, mode=mode),
+        "lift": note(root, motif_degrees[2], 6, mode=mode),
+        "resolve": note(root, motif_degrees[3], 5, mode=mode),
+        "counter": note(root, 3, 4, mode=mode),
+        "vocal_anchor": note(root, 1, 5, mode=mode),
         "theme_anchor": theme_anchor,
         "theme_degrees": motif_degrees[:],
-        "theme_fragment": [note(root, degree, 5 if degree in (1, 3, 5) else 6) for degree in motif_degrees[:4]],
+        "theme_fragment": [note(root, degree, 5 if degree in (1, 3, 5) else 6, mode=mode) for degree in motif_degrees[:4]],
         "theme_rhythm": theme_rhythm,
     }
 
@@ -8835,8 +8874,9 @@ def chord_tone_pitch_classes(chord):
 
 
 def scale_pitch_classes_for_key(key):
-    root_pc = NOTE[key] % 12
-    return {(root_pc + interval) % 12 for interval in SCALE}
+    tonic, quality = key_parts(key)
+    root_pc = NOTE[tonic] % 12
+    return {(root_pc + interval) % 12 for interval in scale_intervals_for_mode(quality)}
 
 
 def nearest_pitch_from_classes(source_pitch, allowed_classes, low=0, high=127):
@@ -9895,6 +9935,9 @@ def apply_v11_motif_story_engine(tracks, sections, chords, blueprint, identity):
     story_validation = validate_musical_story(story, core_motif, motif_variations, note_tracks, sections, shiver)
     motif_story = {
         **story,
+        "key": blueprint.get("selected_key", story.get("key", "")),
+        "tonic": blueprint.get("selected_tonic", ""),
+        "key_mode": blueprint.get("selected_key_mode", ""),
         "core_motif": core_motif,
         "motif_variations_by_section": motif_variations,
         "motif_owner_by_section": motif_owners,
@@ -14169,22 +14212,26 @@ def add_lead_family(tracks, start_tick: int, chord, kind: str, local_bar: int, s
                 add_event(tracks["vocal_melody"], start_tick + tick(start_offset + beat_pos * 0.35), clamp(pitch, 60, 90), tick(min(0.6 if drop_role == "emotional" else 0.45, beat_len)), velocity=clamp(int(((58 + intensity * 18) * relation["vocal_gain"]) * finish_factor) + (6 if drop_role == "emotional" else -4 if drop_role == "tease" else 0), 40, 100))
 
 
-def render_song(bpm: int, key: str, progression: str, arrangement: str, variation: str, density: str, energy_bias: str, track_identity: str = TRACK_IDENTITY_MODE):
+def render_song(bpm: int, key: str, key_mode: str, progression: str, arrangement: str, variation: str, density: str, energy_bias: str, track_identity: str = TRACK_IDENTITY_MODE):
     rng = random.Random(time_ns())
     genre = progression
+    tonic, quality = key_parts(key, key_mode)
+    selected_key = key_label(tonic, quality)
     identity_profile = select_track_identity(genre, rng, track_identity)
     identity_profile["identity_variation_type"] = select_identity_variation(identity_profile["profile_key"], rng, track_identity)
     blueprint = build_song_blueprint(rng, genre, variation, density, energy_bias, identity_profile=identity_profile)
-    identity = build_identity_blueprint(key, rng, variation, blueprint)
-    blueprint["selected_key"] = key
+    identity = build_identity_blueprint(tonic, rng, variation, blueprint, mode=quality)
+    blueprint["selected_key"] = selected_key
+    blueprint["selected_tonic"] = tonic
+    blueprint["selected_key_mode"] = quality
     blueprint["progression_name"] = genre
     blueprint["genre"] = genre
     identity["progression_name"] = genre
     identity["progression_family"] = blueprint.get("progression_family", "")
-    chords = progression_chords(key, genre)
+    chords = progression_chords(tonic, genre, mode=quality)
     sections = arrange_sections(arrangement, blueprint)
-    blueprint["v11_story"] = create_track_story(blueprint, blueprint.get("variation_type", "DEFAULT"), genre, key)
-    blueprint["v11_core_motif"] = create_core_motif(key, genre, blueprint, blueprint["v11_story"]["story_type"])
+    blueprint["v11_story"] = create_track_story(blueprint, blueprint.get("variation_type", "DEFAULT"), genre, selected_key)
+    blueprint["v11_core_motif"] = create_core_motif(selected_key, genre, blueprint, blueprint["v11_story"]["story_type"])
     tracks = {stem: [] for stem in STEMS}
     markers = []
 
@@ -15819,6 +15866,8 @@ def build_technical_midi_analysis_text(stem_analysis, blueprint, sections):
         "TRACK METADATA\n"
         f"- Genre: {blueprint.get('genre', blueprint.get('progression_name', ''))}\n"
         f"- Identity: {blueprint.get('track_identity', '')}\n"
+        f"- Key: {blueprint.get('selected_key', '')}\n"
+        f"- Mode: {blueprint.get('selected_key_mode', '')}\n"
         f"- Progression: {blueprint.get('progression_name', '')}\n\n"
         "CROSS-STEM MIX CONTEXT\n"
         f"{context_lines}\n\n"
@@ -15841,6 +15890,8 @@ def build_ableton_setup_guide(stem_analysis, bpm: int, sections, blueprint=None)
         f"Ableton Setup Guide - Dream Trance Generator {APP_VERSION} / Advisor {ADVISOR_UI_VERSION}\n\n"
         "Project Setup:\n"
         f"- Set tempo to {bpm} BPM before importing MIDI.\n"
+        f"- Key: {blueprint.get('selected_key', 'unknown')}\n"
+        f"- Mode: {blueprint.get('selected_key_mode', 'unknown')}\n"
         f"- Track identity: {blueprint.get('track_identity', 'unknown')}\n"
         f"- Production intention: {blueprint.get('track_identity_description', 'unknown')}\n"
         f"- Emotional target: {blueprint.get('emotional_target', 'unknown')}\n"
@@ -15918,6 +15969,8 @@ def build_plugin_recommendations(stem_analysis, blueprint=None, bpm=None):
         "variation_behavior_summary": blueprint.get("variation_behavior_summary", ""),
         "bpm": bpm,
         "key": blueprint.get("selected_key", ""),
+        "key_mode": blueprint.get("selected_key_mode", ""),
+        "tonic": blueprint.get("selected_tonic", ""),
         "emotional_target": blueprint.get("emotional_target", ""),
         "selected_chord_progression": blueprint.get("selected_chord_progression", blueprint.get("progression_name", "")),
         "progression_name": blueprint.get("progression_name", ""),
@@ -15972,6 +16025,8 @@ def export_pack(bpm: int, tracks, blueprint, sections, markers, out_path: Path):
         notes_path.write_text(
             f"Dream Trance Generator {APP_VERSION}\n\n"
             + "V11 MOTIF / STORY SUMMARY\n"
+            + f"- key: {blueprint.get('selected_key', '')}\n"
+            + f"- mode: {blueprint.get('selected_key_mode', '')}\n"
             + f"- story_type: {motif_story.get('story_type', '')}\n"
             + f"- emotional_arc: {', '.join(motif_story.get('emotional_arc', []))}\n"
             + f"- main_motif_owner: {motif_story.get('main_motif_owner', '')}\n"
@@ -16937,6 +16992,7 @@ def download_pack(token: str):
 def generate(
     bpm: Annotated[int, Form(..., ge=132, le=142)],
     key: Annotated[KeyType, Form(...)],
+    key_mode: Annotated[KeyModeType, Form(...)],
     progression: Annotated[ProgressionType, Form(...)],
     arrangement: Annotated[ArrangementType, Form(...)],
     variation: Annotated[VariationType, Form(...)],
@@ -16944,11 +17000,12 @@ def generate(
     energy_profile: Annotated[EnergyBiasType, Form(...)],
     track_identity: Annotated[TrackIdentityType, Form()] = TRACK_IDENTITY_MODE,
 ):
-    tracks, blueprint, sections, markers = render_song(bpm, key, progression, arrangement, variation, density, energy_profile, track_identity)
+    tracks, blueprint, sections, markers = render_song(bpm, key, key_mode, progression, arrangement, variation, density, energy_profile, track_identity)
     progression_slug = export_slug(blueprint.get("progression_name", progression))
-    file_path = EXPORTS_DIR / f"dream_trance_{EXPORT_VERSION}_{progression_slug}_{uuid4().hex}.zip"
+    key_slug = export_slug(blueprint.get("selected_key", key_label(key, key_mode)))
+    file_path = EXPORTS_DIR / f"dream_trance_{EXPORT_VERSION}_{key_slug}_{progression_slug}_{uuid4().hex}.zip"
     export_pack(bpm, tracks, blueprint, sections, markers, file_path)
     token = uuid4().hex
-    filename = f"dream_trance_{EXPORT_VERSION}_{progression_slug}_pack.zip"
+    filename = f"dream_trance_{EXPORT_VERSION}_{key_slug}_{progression_slug}_pack.zip"
     GENERATED_PACKS[token] = {"path": str(file_path), "filename": filename}
-    return HTMLResponse(result_page(f"/download/{token}", blueprint, bpm, key))
+    return HTMLResponse(result_page(f"/download/{token}", blueprint, bpm, blueprint.get("selected_key", key_label(key, key_mode))))

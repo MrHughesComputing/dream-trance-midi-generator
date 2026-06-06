@@ -2,6 +2,8 @@
 
 Improved section-aware uplifting vocal trance MIDI generator.
 
+The main composer page lets you choose a tonic plus Major / Minor mode, and exported packs include the full selected key in their metadata and ZIP filename.
+
 ## What changed from V1
 - Stems do not all begin at bar 1 anymore.
 - Drops use a repeating motif rather than random lead notes.
