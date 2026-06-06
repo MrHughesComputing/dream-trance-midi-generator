@@ -776,7 +776,7 @@ HTML = """
       <div class="hero-side">
         <div class="stat">Blueprint-driven stems<strong>Chords, pads, piano, arp, bass, drums, lead, and vocal all follow one authored plan.</strong></div>
         <div class="stat">Export package<strong>Combined arrangement MIDI plus aligned per-stem MIDI files in one ZIP.</strong></div>
-        <div class="stat">Best first test<strong>138 BPM, F# minor or D major, uplifting, medium density, medium variation.</strong></div>
+        <div class="stat">Best first test<strong>126 BPM progressive or 138 BPM uplifting, F# minor or D major, medium density.</strong></div>
       </div>
     </section>
     <section class="main">
@@ -6400,6 +6400,54 @@ def choose_weighted(rng: random.Random, values, user_bias: str):
     return rng.choice(values)
 
 
+def tempo_context_for(bpm: int, progression: str) -> dict:
+    if bpm <= 128 and progression == "progressive":
+        return {
+            "tempo_profile": "slow_progressive_trance",
+            "tempo_description": "126-128 BPM progressive trance: deeper groove, patient build, restrained drums, and a smoother drop arrival.",
+            "groove_intent": "hypnotic progressive flow",
+        }
+    if bpm <= 131:
+        return {
+            "tempo_profile": "deep_trance",
+            "tempo_description": "Lower-tempo trance: more space, warmer groove, and less festival-style urgency.",
+            "groove_intent": "deep steady flow",
+        }
+    if bpm >= 138:
+        return {
+            "tempo_profile": "uplifting_peak_time",
+            "tempo_description": "Peak-time trance tempo: stronger lift, brighter drums, and more urgent build energy.",
+            "groove_intent": "driving lift",
+        }
+    return {
+        "tempo_profile": "standard_trance",
+        "tempo_description": "Standard trance tempo with balanced groove and lift.",
+        "groove_intent": "balanced trance motion",
+    }
+
+
+def apply_tempo_context_to_blueprint(blueprint: dict, bpm: int, progression: str):
+    context = tempo_context_for(bpm, progression)
+    blueprint.update(context)
+    if context["tempo_profile"] == "slow_progressive_trance":
+        blueprint["drum_style"] = "minimal"
+        blueprint["bass_style"] = "hybrid"
+        blueprint["drop_arrival_style"] = "glide_in"
+        blueprint["energy_profile"] = "gradual_rise"
+        blueprint["archetype_support_timing"] = "late_bloom"
+        blueprint["arrangement_density_profile"] = "breathing"
+        blueprint["groove_variation_profile"] = "syncopated"
+        blueprint["variant_hat_grid"] = "late_8th"
+        blueprint["variant_clap_pattern"] = "sparse_answer"
+        blueprint["variant_kick_phrase"] = "pump"
+        blueprint["drop_layer_budget"] = min(int(blueprint.get("drop_layer_budget", 4)), 4)
+    elif context["tempo_profile"] == "deep_trance":
+        blueprint["energy_profile"] = "gradual_rise"
+        blueprint["arrangement_density_profile"] = "breathing"
+        blueprint["drop_arrival_style"] = "glide_in" if blueprint.get("drop_arrival_style") == "slam" else blueprint.get("drop_arrival_style", "glide_in")
+    return blueprint
+
+
 def select_track_identity(genre: str, rng: random.Random, user_choice=None):
     global RECENT_TRACK_IDENTITIES
     allowed = GENRE_VARIATIONS.get(genre, list(TRACK_IDENTITY_PROFILES.keys()))
@@ -9938,6 +9986,10 @@ def apply_v11_motif_story_engine(tracks, sections, chords, blueprint, identity):
         "key": blueprint.get("selected_key", story.get("key", "")),
         "tonic": blueprint.get("selected_tonic", ""),
         "key_mode": blueprint.get("selected_key_mode", ""),
+        "bpm": blueprint.get("bpm", 0),
+        "tempo_profile": blueprint.get("tempo_profile", ""),
+        "tempo_description": blueprint.get("tempo_description", ""),
+        "groove_intent": blueprint.get("groove_intent", ""),
         "core_motif": core_motif,
         "motif_variations_by_section": motif_variations,
         "motif_owner_by_section": motif_owners,
@@ -14220,10 +14272,12 @@ def render_song(bpm: int, key: str, key_mode: str, progression: str, arrangement
     identity_profile = select_track_identity(genre, rng, track_identity)
     identity_profile["identity_variation_type"] = select_identity_variation(identity_profile["profile_key"], rng, track_identity)
     blueprint = build_song_blueprint(rng, genre, variation, density, energy_bias, identity_profile=identity_profile)
+    blueprint = apply_tempo_context_to_blueprint(blueprint, bpm, genre)
     identity = build_identity_blueprint(tonic, rng, variation, blueprint, mode=quality)
     blueprint["selected_key"] = selected_key
     blueprint["selected_tonic"] = tonic
     blueprint["selected_key_mode"] = quality
+    blueprint["bpm"] = bpm
     blueprint["progression_name"] = genre
     blueprint["genre"] = genre
     identity["progression_name"] = genre
@@ -15827,6 +15881,8 @@ def build_production_quick_start_text(stem_analysis, blueprint, sections, bpm: i
         f"- Identity: {blueprint.get('track_identity', '')}\n"
         f"- Variation: {blueprint.get('variation_type', 'DEFAULT')}\n"
         f"- BPM: {bpm}\n"
+        f"- Tempo profile: {blueprint.get('tempo_profile', 'standard_trance')}\n"
+        f"- Groove intent: {blueprint.get('groove_intent', 'balanced trance motion')}\n"
         f"- Key: {key or blueprint.get('selected_key') or 'selected key'}\n\n"
         "START HERE (STEP-BY-STEP)\n"
         "1. Load Kick: Ableton Drum Rack or Battery 4.\n"
@@ -15868,6 +15924,8 @@ def build_technical_midi_analysis_text(stem_analysis, blueprint, sections):
         f"- Identity: {blueprint.get('track_identity', '')}\n"
         f"- Key: {blueprint.get('selected_key', '')}\n"
         f"- Mode: {blueprint.get('selected_key_mode', '')}\n"
+        f"- Tempo profile: {blueprint.get('tempo_profile', '')}\n"
+        f"- Groove intent: {blueprint.get('groove_intent', '')}\n"
         f"- Progression: {blueprint.get('progression_name', '')}\n\n"
         "CROSS-STEM MIX CONTEXT\n"
         f"{context_lines}\n\n"
@@ -15892,6 +15950,8 @@ def build_ableton_setup_guide(stem_analysis, bpm: int, sections, blueprint=None)
         f"- Set tempo to {bpm} BPM before importing MIDI.\n"
         f"- Key: {blueprint.get('selected_key', 'unknown')}\n"
         f"- Mode: {blueprint.get('selected_key_mode', 'unknown')}\n"
+        f"- Tempo profile: {blueprint.get('tempo_profile', 'standard_trance')}\n"
+        f"- Groove intent: {blueprint.get('groove_intent', 'balanced trance motion')}\n"
         f"- Track identity: {blueprint.get('track_identity', 'unknown')}\n"
         f"- Production intention: {blueprint.get('track_identity_description', 'unknown')}\n"
         f"- Emotional target: {blueprint.get('emotional_target', 'unknown')}\n"
@@ -15968,6 +16028,9 @@ def build_plugin_recommendations(stem_analysis, blueprint=None, bpm=None):
         "variation_type": blueprint.get("variation_type", "DEFAULT"),
         "variation_behavior_summary": blueprint.get("variation_behavior_summary", ""),
         "bpm": bpm,
+        "tempo_profile": blueprint.get("tempo_profile", ""),
+        "tempo_description": blueprint.get("tempo_description", ""),
+        "groove_intent": blueprint.get("groove_intent", ""),
         "key": blueprint.get("selected_key", ""),
         "key_mode": blueprint.get("selected_key_mode", ""),
         "tonic": blueprint.get("selected_tonic", ""),
@@ -16027,6 +16090,10 @@ def export_pack(bpm: int, tracks, blueprint, sections, markers, out_path: Path):
             + "V11 MOTIF / STORY SUMMARY\n"
             + f"- key: {blueprint.get('selected_key', '')}\n"
             + f"- mode: {blueprint.get('selected_key_mode', '')}\n"
+            + f"- bpm: {bpm}\n"
+            + f"- tempo_profile: {blueprint.get('tempo_profile', '')}\n"
+            + f"- tempo_description: {blueprint.get('tempo_description', '')}\n"
+            + f"- groove_intent: {blueprint.get('groove_intent', '')}\n"
             + f"- story_type: {motif_story.get('story_type', '')}\n"
             + f"- emotional_arc: {', '.join(motif_story.get('emotional_arc', []))}\n"
             + f"- main_motif_owner: {motif_story.get('main_motif_owner', '')}\n"
@@ -16088,6 +16155,8 @@ def export_pack(bpm: int, tracks, blueprint, sections, markers, out_path: Path):
             + f"- track_identity: {blueprint.get('track_identity', '')}\n"
             + f"- track_identity_description: {blueprint.get('track_identity_description', '')}\n"
             + f"- variation_type: {validation.get('variation_type', blueprint.get('variation_type', 'DEFAULT'))}\n"
+            + f"- tempo_profile: {blueprint.get('tempo_profile', '')}\n"
+            + f"- groove_intent: {blueprint.get('groove_intent', '')}\n"
             + f"- variation_behavior_summary: {validation.get('variation_behavior_summary', blueprint.get('variation_behavior_summary', ''))}\n"
             + f"- variation_enforcement_passed: {validation.get('variation_enforcement_passed', False)}\n"
             + f"- variation_enforcement_failed_checks: {validation.get('variation_enforcement_failed_checks', '')}\n"
@@ -16990,7 +17059,7 @@ def download_pack(token: str):
 
 @app.post("/generate")
 def generate(
-    bpm: Annotated[int, Form(..., ge=132, le=142)],
+    bpm: Annotated[int, Form(..., ge=120, le=142)],
     key: Annotated[KeyType, Form(...)],
     key_mode: Annotated[KeyModeType, Form(...)],
     progression: Annotated[ProgressionType, Form(...)],

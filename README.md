@@ -3,6 +3,7 @@
 Improved section-aware uplifting vocal trance MIDI generator.
 
 The main composer page lets you choose a tonic plus Major / Minor mode, and exported packs include the full selected key in their metadata and ZIP filename.
+Progressive trance renders support lower tempos such as 126 BPM; the engine tags those as slow progressive trance and biases the arrangement toward a deeper groove and patient build.
 
 ## What changed from V1
 - Stems do not all begin at bar 1 anymore.
