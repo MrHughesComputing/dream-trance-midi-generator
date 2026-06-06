@@ -5,8 +5,10 @@ from uuid import uuid4
 import base64
 import json
 import copy
+import os
 import random
 import shutil
+import tempfile
 import zipfile
 from fastapi import FastAPI, Form
 from fastapi.responses import FileResponse, HTMLResponse
@@ -27,7 +29,7 @@ from lib.music_theory import KEY_OPTIONS as EDM_KEY_OPTIONS
 from lib.music_theory import MODE_LABELS
 
 BASE_DIR = Path(__file__).resolve().parent
-EXPORTS_DIR = BASE_DIR / "exports"
+EXPORTS_DIR = Path(tempfile.gettempdir()) / "dream_trance_exports" if os.getenv("VERCEL") else BASE_DIR / "exports"
 APP_VERSION = "V11.5"
 ADVISOR_UI_VERSION = "V9.8"
 HOOK_MODE = True
