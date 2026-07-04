@@ -4,6 +4,7 @@ Improved section-aware uplifting vocal trance MIDI generator.
 
 The main composer page lets you choose a tonic plus Major / Minor mode, and exported packs include the full selected key in their metadata and ZIP filename.
 Progressive trance renders support lower tempos such as 126 BPM; the engine tags those as slow progressive trance and biases the arrangement toward a deeper groove and patient build.
+The EDM MIDI Idea Lab includes Artist Direction presets that bias broad rhythm, motif, progression, energy, bass, and arp/pluck traits without copying songs or melodies.
 
 ## What changed from V1
 - Stems do not all begin at bar 1 anymore.

@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from mido import Message, MetaMessage, MidiFile, MidiTrack, bpm2tempo
 from starlette.background import BackgroundTask
 from lib.edm_generator import (
+    ARTIST_DIRECTION_LABELS,
     COMPLEXITY_LABELS,
     ENERGY_LABELS,
     GENRE_LABELS,
@@ -16637,6 +16638,14 @@ MELODY_LAB_HTML = """
     .section-preview { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
     .progression { color: var(--accent-2); font-weight: 800; }
     .notes { color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .preset-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .preset {
+      background: rgba(116, 214, 255, 0.11);
+      border: 1px solid rgba(116, 214, 255, 0.22);
+      color: var(--text);
+      padding: 9px 10px;
+      font-size: 12px;
+    }
     .wide { grid-column: 1 / -1; }
     @media (max-width: 880px) {
       .top, .layout, .grid { grid-template-columns: 1fr; display: grid; }
@@ -16673,6 +16682,21 @@ MELODY_LAB_HTML = """
           <div class="field">
             <label for="genre">Trance / EDM Type</label>
             <select id="genre" name="genre">__GENRES__</select>
+          </div>
+          <div class="field wide">
+            <label for="artist_direction">Artist Direction</label>
+            <select id="artist_direction" name="artist_direction">__ARTIST_DIRECTIONS__</select>
+            <p class="notes">Artist directions bias rhythm, motif, progression, energy and arrangement feel without copying songs or melodies.</p>
+            <div class="preset-row">
+              <button class="preset" type="button" data-artist="armin_van_buuren">Armin</button>
+              <button class="preset" type="button" data-artist="deadmau5">deadmau5</button>
+              <button class="preset" type="button" data-artist="andrew_rayel">Andrew Rayel</button>
+              <button class="preset" type="button" data-artist="alan_walker">Alan Walker</button>
+              <button class="preset" type="button" data-artist="lost_frequencies">Lost Frequencies</button>
+              <button class="preset" type="button" data-artist="marlo">MaRLo</button>
+              <button class="preset" type="button" data-artist="cosmic_gate">Cosmic Gate</button>
+              <button class="preset" type="button" data-artist="rubik">Rub!k</button>
+            </div>
           </div>
           <div class="field">
             <label for="generation_type">MIDI Generation Type</label>
@@ -16763,6 +16787,7 @@ def melody_lab_page(result_html: str = "", playback_json: str = "[]") -> str:
         .replace("__KEYS__", key_options)
         .replace("__SCALES__", select_options(MODE_LABELS.items(), "natural_minor"))
         .replace("__GENRES__", select_options(GENRE_LABELS.items(), "uplifting_trance"))
+        .replace("__ARTIST_DIRECTIONS__", select_options(ARTIST_DIRECTION_LABELS.items(), "none"))
         .replace("__GENERATION_TYPES__", select_options(GENERATION_LABELS.items(), "full_section_sketch"))
         .replace("__SECTIONS__", select_options(SECTION_LABELS.items(), "full"))
         .replace("__COMPLEXITIES__", select_options(COMPLEXITY_LABELS.items(), "medium"))
@@ -16819,6 +16844,14 @@ function regenerateIdea(mode) {{
   const form = document.querySelector('form[action="/melody-lab/generate"]');
   if (form) form.submit();
 }}
+document.querySelectorAll('[data-artist]').forEach(button => {{
+  button.addEventListener('click', () => {{
+    const select = document.getElementById('artist_direction');
+    const form = document.querySelector('form[action="/melody-lab/generate"]');
+    if (select) select.value = button.dataset.artist;
+    if (form) form.submit();
+  }});
+}});
 </script>
 """
     return page_html.replace("</body>", audition_script + "\n</body>")
@@ -16922,7 +16955,9 @@ def render_option_preview(result, download_href: str, download_filename: str = "
             f'<span class="pill">{preview["bpm"]} BPM</span>'
             f'<span class="pill">{preview["genre"]}</span>'
             f'<span class="pill">{preview["generation_type"]}</span>'
+            f'<span class="pill">{preview.get("artist_direction_label", "None")}</span>'
             '</div>'
+            f'<p class="notes">{preview.get("artist_profile_summary", "No artist direction selected.")}</p>'
             f'<p>Creative risk: {preview["creative_risk_description"]}. Energy: {preview["energy_description"]}.</p>'
             f'<p><strong>Melody:</strong> {preview["hook_summary"]}</p>'
             f'<p><strong>Core Hook Score:</strong> {core_audit.get("core_hook_score", 0)}/100 | '
@@ -16994,6 +17029,7 @@ def generate_melody_lab(
     complexity: Annotated[str, Form(...)],
     energy: Annotated[str, Form(...)],
     creative_risk: Annotated[str, Form(...)],
+    artist_direction: Annotated[str, Form()] = "none",
     length_mode: Annotated[str, Form()] = "per_section",
     include_arpeggio_pluck: Annotated[str, Form()] = "true",
     hook_search_depth: Annotated[str, Form()] = "balanced",
@@ -17006,6 +17042,7 @@ def generate_melody_lab(
         "key": key,
         "scale": scale,
         "genre": genre,
+        "artist_direction": artist_direction,
         "generation_type": generation_type,
         "arrangement_section": arrangement_section,
         "bars": bars,

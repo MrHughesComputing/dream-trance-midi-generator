@@ -67,6 +67,149 @@ RISK_LABELS = {
     "outside_box": "Outside-the-box",
 }
 
+ARTIST_DIRECTION_LABELS = {
+    "none": "None",
+    "armin_van_buuren": "Armin van Buuren direction",
+    "deadmau5": "deadmau5 direction",
+    "andrew_rayel": "Andrew Rayel direction",
+    "alan_walker": "Alan Walker direction",
+    "lost_frequencies": "Lost Frequencies direction",
+    "marlo": "MaRLo direction",
+    "cosmic_gate": "Cosmic Gate direction",
+    "rubik": "Rub!k direction",
+}
+
+ARTIST_DIRECTION_PROFILES = {
+    "armin_van_buuren": {
+        "preferred_genres": ["uplifting_trance", "progressive_trance"],
+        "preferred_bpm_range": [132, 140],
+        "preferred_modes": ["natural_minor", "major"],
+        "chord_bias": "uplifting_i_vi_iii_vii_or_vi_iv_i_v",
+        "motif_style": "anthemic_sustained_hook",
+        "rhythm_bias": "clear_4_bar_phrases",
+        "arp_pluck_bias": "medium",
+        "bass_bias": "rolling_or_offbeat_clean",
+        "breakdown_bias": "emotional_piano_pad_vocal_space",
+        "drop_bias": "wide_supersaw_lead_payoff",
+        "energy_bias": "peak_time",
+        "complexity_bias": "medium",
+        "vocal_space_bias": "medium_high",
+        "avoid": ["overly experimental chromaticism", "overcrowded drop melody"],
+    },
+    "deadmau5": {
+        "preferred_genres": ["progressive_trance", "melodic_edm"],
+        "preferred_bpm_range": [124, 130],
+        "preferred_modes": ["natural_minor", "dorian"],
+        "chord_bias": "slow_progressive_loop",
+        "motif_style": "short_hypnotic_repeating_cell",
+        "rhythm_bias": "long_build_repetition",
+        "arp_pluck_bias": "low_medium",
+        "bass_bias": "steady_progressive_pulse",
+        "breakdown_bias": "atmospheric_minimal",
+        "drop_bias": "gradual_layered_arrival_not_big_slam",
+        "energy_bias": "building",
+        "complexity_bias": "medium",
+        "vocal_space_bias": "low_medium",
+        "avoid": ["festival snare rush everywhere", "overly euphoric supersaw wall", "busy lead runs"],
+    },
+    "andrew_rayel": {
+        "preferred_genres": ["uplifting_trance", "classic_2000s_trance"],
+        "preferred_bpm_range": [136, 140],
+        "preferred_modes": ["natural_minor", "harmonic_minor"],
+        "chord_bias": "cinematic_i_vi_iii_vii",
+        "motif_style": "orchestral_anthemic_phrase",
+        "rhythm_bias": "dramatic_call_response",
+        "arp_pluck_bias": "medium",
+        "bass_bias": "driving_trance",
+        "breakdown_bias": "piano_strings_cinematic",
+        "drop_bias": "supersaw_plus_orchestral_lift",
+        "energy_bias": "festival_drop",
+        "complexity_bias": "advanced",
+        "vocal_space_bias": "medium",
+        "avoid": ["flat breakdown", "weak strings", "short pointless lead"],
+    },
+    "alan_walker": {
+        "preferred_genres": ["melodic_edm"],
+        "preferred_bpm_range": [90, 128],
+        "preferred_modes": ["natural_minor"],
+        "chord_bias": "simple_vi_iv_i_v_or_i_vi_iv_v",
+        "motif_style": "simple_signature_lead",
+        "rhythm_bias": "half_time_or_simple_pop_edm",
+        "arp_pluck_bias": "low",
+        "bass_bias": "simple_sub_support",
+        "breakdown_bias": "vocal_space_pad_piano",
+        "drop_bias": "simple_lead_hook_with_clean_chords",
+        "energy_bias": "emotional",
+        "complexity_bias": "simple",
+        "vocal_space_bias": "high",
+        "avoid": ["dense trance arps", "complex chord extensions", "too many notes"],
+    },
+    "lost_frequencies": {
+        "preferred_genres": ["melodic_edm"],
+        "preferred_bpm_range": [100, 124],
+        "preferred_modes": ["major", "natural_minor"],
+        "chord_bias": "radio_friendly_i_v_vi_iv_or_vi_iv_i_v",
+        "motif_style": "simple_vocal_support_hook",
+        "rhythm_bias": "laid_back_groove",
+        "arp_pluck_bias": "low",
+        "bass_bias": "soft_house_pulse",
+        "breakdown_bias": "minimal_vocal_space",
+        "drop_bias": "light_melodic_drop",
+        "energy_bias": "low_atmospheric",
+        "complexity_bias": "simple",
+        "vocal_space_bias": "very_high",
+        "avoid": ["hard trance drums", "dense supersaws", "complex arps"],
+    },
+    "marlo": {
+        "preferred_genres": ["uplifting_trance", "dark_emotional_trance"],
+        "preferred_bpm_range": [138, 140],
+        "preferred_modes": ["natural_minor", "phrygian"],
+        "chord_bias": "dark_i_vii_vi_iv_or_i_vi_iv_v",
+        "motif_style": "short_power_lead_hook",
+        "rhythm_bias": "driving_staccato_pressure",
+        "arp_pluck_bias": "medium_high",
+        "bass_bias": "aggressive_rolling",
+        "breakdown_bias": "short_tension_then_lift",
+        "drop_bias": "hard_lead_plus_drive",
+        "energy_bias": "festival_drop",
+        "complexity_bias": "advanced",
+        "vocal_space_bias": "low_medium",
+        "avoid": ["soft radio groove", "overlong empty breakdown"],
+    },
+    "cosmic_gate": {
+        "preferred_genres": ["progressive_trance", "classic_2000s_trance"],
+        "preferred_bpm_range": [128, 136],
+        "preferred_modes": ["natural_minor", "dorian"],
+        "chord_bias": "progressive_minor_loop",
+        "motif_style": "dark_progressive_hook",
+        "rhythm_bias": "steady_club_drive",
+        "arp_pluck_bias": "medium",
+        "bass_bias": "progressive_rolling",
+        "breakdown_bias": "atmospheric_pad_tension",
+        "drop_bias": "controlled_progressive_release",
+        "energy_bias": "building",
+        "complexity_bias": "medium",
+        "vocal_space_bias": "medium",
+        "avoid": ["overly bright happy progressions", "too much orchestral drama"],
+    },
+    "rubik": {
+        "preferred_genres": ["uplifting_trance", "progressive_trance"],
+        "preferred_bpm_range": [132, 138],
+        "preferred_modes": ["natural_minor"],
+        "chord_bias": "modern_progressive_uplift",
+        "motif_style": "sharp_modern_trance_hook",
+        "rhythm_bias": "clean_forward_motion",
+        "arp_pluck_bias": "medium_high",
+        "bass_bias": "tight_rolling",
+        "breakdown_bias": "short_emotional_reset",
+        "drop_bias": "clean_modern_supersaw_drive",
+        "energy_bias": "peak_time",
+        "complexity_bias": "medium_advanced",
+        "vocal_space_bias": "medium",
+        "avoid": ["muddy low end", "random experimental notes", "overly long intro"],
+    },
+}
+
 OPTION_PROFILES = [
     {
         "id": "classic_reliable",
@@ -122,6 +265,77 @@ PROGRESSION_PATTERNS = {
 }
 
 ROMAN = {1: "i", 2: "II", 3: "III", 4: "iv", 5: "v", 6: "VI", 7: "VII"}
+
+ARTIST_CHORD_PATTERNS = {
+    "uplifting_i_vi_iii_vii_or_vi_iv_i_v": [[1, 6, 3, 7], [6, 4, 1, 5]],
+    "slow_progressive_loop": [[1, 1, 6, 6], [6, 6, 4, 4]],
+    "cinematic_i_vi_iii_vii": [[1, 6, 3, 7], [1, 6, 4, 5]],
+    "simple_vi_iv_i_v_or_i_vi_iv_v": [[6, 4, 1, 5], [1, 6, 4, 5]],
+    "radio_friendly_i_v_vi_iv_or_vi_iv_i_v": [[1, 5, 6, 4], [6, 4, 1, 5]],
+    "dark_i_vii_vi_iv_or_i_vi_iv_v": [[1, 7, 6, 4], [1, 6, 4, 5]],
+    "progressive_minor_loop": [[1, 6, 7, 1], [6, 1, 7, 4]],
+    "modern_progressive_uplift": [[6, 4, 1, 5], [1, 6, 3, 7]],
+}
+
+
+def artist_profile_summary(direction: str, profile: dict | None = None) -> str:
+    if not profile:
+        return "No artist direction selected."
+    return (
+        f"{ARTIST_DIRECTION_LABELS.get(direction, direction)} biases genre={', '.join(profile['preferred_genres'])}, "
+        f"BPM={profile['preferred_bpm_range'][0]}-{profile['preferred_bpm_range'][1]}, "
+        f"motif={profile['motif_style']}, arp/pluck={profile['arp_pluck_bias']}, bass={profile['bass_bias']}, drop={profile['drop_bias']}."
+    )
+
+
+def controls_explicit(raw, name: str) -> bool:
+    value = raw.get(name)
+    return value not in (None, "")
+
+
+def apply_artist_direction_to_controls(raw_controls, controls):
+    direction = raw_controls.get("artist_direction", "none") or "none"
+    if direction not in ARTIST_DIRECTION_LABELS:
+        direction = "none"
+    profile = ARTIST_DIRECTION_PROFILES.get(direction)
+    controls["artist_direction"] = direction
+    controls["artist_direction_label"] = ARTIST_DIRECTION_LABELS[direction]
+    controls["artist_profile"] = profile or {}
+    controls["artist_profile_summary"] = artist_profile_summary(direction, profile)
+    controls["artist_validation_warnings"] = []
+    if not profile:
+        return controls
+
+    if controls["genre"] not in profile["preferred_genres"]:
+        controls["artist_validation_warnings"].append("artist profile incompatible with selected genre; genre was biased to a compatible direction")
+        controls["genre"] = profile["preferred_genres"][0]
+
+    low, high = profile["preferred_bpm_range"]
+    if controls["bpm"] < low - 4:
+        controls["artist_validation_warnings"].append("selected BPM was far below the artist direction range and was lifted toward it")
+        controls["bpm"] = low
+    elif controls["bpm"] > high + 4:
+        controls["artist_validation_warnings"].append("selected BPM was far above the artist direction range and was lowered toward it")
+        controls["bpm"] = high
+
+    if controls["scale"] not in profile["preferred_modes"]:
+        controls["artist_validation_warnings"].append("selected scale was biased to the artist direction's preferred mode")
+        controls["scale"] = profile["preferred_modes"][0]
+
+    if not controls_explicit(raw_controls, "energy"):
+        controls["energy"] = profile["energy_bias"]
+    if not controls_explicit(raw_controls, "complexity"):
+        controls["complexity"] = "advanced" if profile["complexity_bias"] in ("advanced", "medium_advanced") else profile["complexity_bias"]
+
+    controls["artist_motif_style"] = profile["motif_style"]
+    controls["artist_chord_bias"] = profile["chord_bias"]
+    controls["artist_rhythm_bias"] = profile["rhythm_bias"]
+    controls["artist_arp_pluck_bias"] = profile["arp_pluck_bias"]
+    controls["artist_bass_bias"] = profile["bass_bias"]
+    controls["artist_breakdown_bias"] = profile["breakdown_bias"]
+    controls["artist_drop_bias"] = profile["drop_bias"]
+    controls["artist_vocal_space_bias"] = profile["vocal_space_bias"]
+    return controls
 
 
 @dataclass
@@ -207,6 +421,10 @@ class GeneratedOption:
     core_hook_audit: dict
     full_arrangement_melody_audit: dict
     instant_hummability_audit: dict
+    artist_direction: str
+    artist_direction_label: str
+    artist_profile_summary: str
+    artist_profile: dict
     top_candidate_summaries: list[dict] = field(default_factory=list)
 
 
@@ -220,6 +438,11 @@ class GenerationResult:
     generation_type: str
     arrangement_bars: int
     length_mode: str
+    artist_direction: str
+    artist_direction_label: str
+    artist_profile_summary: str
+    artist_profile: dict
+    artist_validation_warnings: list[str]
     options: list[GeneratedOption]
 
 
@@ -415,10 +638,14 @@ def voice_chord(chord: ChordIdea, key_label: str, mode: str, section: str, optio
     return voicing
 
 
-def select_pattern(genre: str, section: str, option_id: str, rng: random.Random, variant: int = 0):
+def select_pattern(genre: str, section: str, option_id: str, rng: random.Random, variant: int = 0, artist_chord_bias: str = ""):
     patterns = PROGRESSION_PATTERNS.get(genre, PROGRESSION_PATTERNS["uplifting_trance"]).get(section)
     if not patterns:
         patterns = PROGRESSION_PATTERNS.get(genre, PROGRESSION_PATTERNS["uplifting_trance"])["breakdown"]
+    if artist_chord_bias in ARTIST_CHORD_PATTERNS:
+        artist_patterns = ARTIST_CHORD_PATTERNS[artist_chord_bias]
+        index = (variant + (1 if option_id == "emotional_cinematic" else 2 if option_id == "experimental_modern" else 0)) % len(artist_patterns)
+        return list(artist_patterns[index])
     index = 0 if option_id == "classic_reliable" else 1 if option_id == "emotional_cinematic" and len(patterns) > 1 else len(patterns) - 1
     if variant and patterns:
         index = (index + variant) % len(patterns)
@@ -445,8 +672,8 @@ def chord_duration(section: str, complexity: str, energy: str):
     return 4.0
 
 
-def build_chords(key_label: str, mode: str, genre: str, section: str, option_id: str, complexity: str, energy: str, rng, variant: int = 0):
-    pattern = select_pattern(genre, section, option_id, rng, variant)
+def build_chords(key_label: str, mode: str, genre: str, section: str, option_id: str, complexity: str, energy: str, rng, variant: int = 0, artist_chord_bias: str = ""):
+    pattern = select_pattern(genre, section, option_id, rng, variant, artist_chord_bias)
     chords = [degree_triad(key_label, mode, degree, option_id, section, genre) for degree in pattern]
     for chord in chords:
         chord.voicing = voice_chord(chord, key_label, mode, section, option_id, energy)
@@ -469,9 +696,99 @@ def melody_pattern(section: str, option_id: str, complexity: str, genre: str):
     return [(0.0, 0.5), (1.0, 0.5), (2.0, 0.75), (3.0, 0.75), (3.5, 0.4)]
 
 
-def create_hook_identity(key_label: str, mode: str, option_id: str, genre: str, candidate_index: int = 0, rng: random.Random | None = None):
+def artist_hook_variant(motif_style: str, option_id: str, candidate_index: int):
+    variants = {
+        "anthemic_sustained_hook": (
+            [["root", "third", "fifth", "upper_root", "fifth", "root"], ["third", "fifth", "upper_root", "fifth", "third", "root"]],
+            [[(0.0, 0.75), (1.0, 0.75), (2.0, 1.0), (3.0, 1.25), (0.5, 0.5), (2.75, 0.5)]],
+            "Anthemic sustained trance hook with a clean payoff note and vocal-friendly phrase space.",
+            "anthemic 4-bar phrase",
+            "broad emotional payoff",
+            "supersaw lead or vocal-support pluck",
+        ),
+        "short_hypnotic_repeating_cell": (
+            [["root", "fifth", "root", "third"], ["third", "root", "third", "fifth"]],
+            [[(0.0, 0.45), (1.0, 0.45), (2.0, 0.45), (3.0, 0.75)]],
+            "Short repeating progressive cell with restrained variation and hypnotic repetition.",
+            "looped cell - gradual variation",
+            "hypnotic restraint",
+            "progressive pluck or muted lead",
+        ),
+        "orchestral_anthemic_phrase": (
+            [["third", "fifth", "upper_root", "fifth", "third", "root"], ["root", "third", "fifth", "upper_root", "fifth", "root"]],
+            [[(0.0, 0.85), (1.0, 0.75), (2.0, 1.0), (3.0, 1.3), (0.5, 0.45), (2.75, 0.6)]],
+            "Wide cinematic phrase designed to sit on piano or strings before a large trance lift.",
+            "call - lift - payoff",
+            "cinematic lift",
+            "piano, strings, or supersaw lead",
+        ),
+        "simple_signature_lead": (
+            [["root", "third", "fifth", "root"], ["root", "fifth", "third", "root"]],
+            [[(0.0, 0.75), (1.0, 0.75), (2.0, 0.75), (3.0, 1.0)]],
+            "Very simple four-note melodic EDM motif designed for instant singback without copying any source melody.",
+            "simple signature motif",
+            "dark memorable simplicity",
+            "clean lead or vocal guide",
+        ),
+        "simple_vocal_support_hook": (
+            [["third", "root", "fifth", "third"], ["root", "third", "root", "fifth"]],
+            [[(0.0, 0.8), (1.5, 0.6), (2.5, 0.7), (3.25, 0.75)]],
+            "Light vocal-support hook with space for a topline and warm radio-friendly movement.",
+            "vocal support motif",
+            "warm accessibility",
+            "soft pluck, piano, or vocal guide",
+        ),
+        "short_power_lead_hook": (
+            [["fifth", "root", "third", "fifth", "upper_root"], ["root", "fifth", "third", "root", "fifth"]],
+            [[(0.0, 0.35), (0.5, 0.35), (1.25, 0.45), (2.0, 0.45), (3.0, 0.85)]],
+            "Short high-pressure lead hook with driving staccato energy and a strong final hit.",
+            "power hook",
+            "festival pressure",
+            "hard trance lead or tight pluck stack",
+        ),
+        "dark_progressive_hook": (
+            [["root", "fifth", "third", "root", "fifth"], ["third", "root", "fifth", "third", "root"]],
+            [[(0.0, 0.55), (1.0, 0.5), (1.75, 0.55), (2.75, 0.5), (3.25, 0.75)]],
+            "Darker progressive club hook with controlled movement and less sugary uplift.",
+            "controlled club phrase",
+            "dark progressive release",
+            "progressive lead or pluck",
+        ),
+        "sharp_modern_trance_hook": (
+            [["fifth", "third", "root", "fifth", "upper_root"], ["root", "third", "fifth", "third", "root"]],
+            [[(0.0, 0.45), (0.75, 0.45), (1.5, 0.5), (2.25, 0.5), (3.0, 0.9)]],
+            "Sharp modern trance hook with clean forward motion and ASOT-compatible drive.",
+            "sharp modern phrase",
+            "clean peak-time drive",
+            "modern supersaw or pluck lead",
+        ),
+    }
+    if motif_style not in variants:
+        return None
+    role_variants, rhythm_variants, summary, structure, target, synth_role = variants[motif_style]
+    return {
+        "roles": role_variants[candidate_index % len(role_variants)],
+        "rhythm": rhythm_variants[(candidate_index // len(role_variants)) % len(rhythm_variants)],
+        "summary": summary,
+        "structure": structure,
+        "emotional_target": target,
+        "recommended_synth_role": synth_role,
+        "rhythmic_fingerprint": motif_style,
+    }
+
+
+def create_hook_identity(key_label: str, mode: str, option_id: str, genre: str, candidate_index: int = 0, rng: random.Random | None = None, artist_motif_style: str = ""):
     rng = rng or random.Random(candidate_index)
-    if option_id == "classic_reliable":
+    artist_variant = artist_hook_variant(artist_motif_style, option_id, candidate_index)
+    if artist_variant:
+        roles = artist_variant["roles"]
+        rhythm = artist_variant["rhythm"]
+        rhythmic_fingerprint = artist_variant["rhythmic_fingerprint"]
+        summary = artist_variant["summary"]
+        structure = artist_variant["structure"]
+        emotional_target = artist_variant["emotional_target"]
+        recommended_synth_role = artist_variant["recommended_synth_role"]
+    elif option_id == "classic_reliable":
         role_variants = [
             ["root", "third", "fifth", "third", "root"],
             ["root", "fifth", "third", "fifth", "root"],
@@ -846,7 +1163,7 @@ def target_pool(chord: ChordIdea, key_label: str, mode: str, section: str, optio
     return tones
 
 
-def build_section_events(section_idea: SectionIdea, key_label: str, mode: str, genre: str, option_id: str, generation_type: str, complexity: str, energy: str, hook_identity, include_arpeggio_pluck: bool = True):
+def build_section_events(section_idea: SectionIdea, key_label: str, mode: str, genre: str, option_id: str, generation_type: str, complexity: str, energy: str, hook_identity, include_arpeggio_pluck: bool = True, artist_arp_pluck_bias: str = "medium", artist_bass_bias: str = ""):
     include_chords = generation_type in ("chords_only", "chords_melody", "full_section_sketch", "breakdown_progression_only")
     include_melody = generation_type in ("melody_only", "chords_melody", "full_section_sketch", "drop_hook_only")
     include_arp = include_chords and include_arpeggio_pluck
@@ -870,9 +1187,25 @@ def build_section_events(section_idea: SectionIdea, key_label: str, mode: str, g
             section_idea.melody_events.extend(hook_events_for_bar(chord, hook_identity, key_label, mode, section, option_id, local_bar, start))
         if include_chords:
             bass_note = pitch_for_pc(chord.root % 12, chord.root - 24, 34, 52)
-            section_idea.bass_events.append({"start": start, "duration": BAR_TICKS, "note": bass_note, "velocity": 82 if section == "drop" else 62})
+            bass_duration = BAR_TICKS
+            bass_velocity = 82 if section == "drop" else 62
+            if artist_bass_bias in ("simple_sub_support", "soft_house_pulse"):
+                bass_duration = BAR_TICKS * (2 if local_bar % 2 == 0 else 1)
+                bass_velocity = 68 if section == "drop" else 54
+                if local_bar % 2 == 1 and artist_bass_bias == "simple_sub_support":
+                    bass_duration = 0
+            elif artist_bass_bias in ("steady_progressive_pulse", "progressive_rolling"):
+                bass_duration = tick(2.0)
+                bass_velocity = 76 if section == "drop" else 60
+            elif artist_bass_bias in ("aggressive_rolling", "tight_rolling"):
+                bass_duration = tick(1.0)
+                bass_velocity = 92 if section == "drop" else 72
+            if bass_duration:
+                section_idea.bass_events.append({"start": start, "duration": bass_duration, "note": bass_note, "velocity": bass_velocity})
+                if artist_bass_bias in ("aggressive_rolling", "tight_rolling") and section in ("build", "drop"):
+                    section_idea.bass_events.append({"start": start + tick(2.0), "duration": tick(1.0), "note": bass_note, "velocity": max(1, bass_velocity - 4)})
         if include_arp and include_chords:
-            for event in arp_events_for_bar(chord, start, section, option_id, complexity, genre):
+            for event in arp_events_for_bar(chord, start, section, option_id, complexity, genre, artist_arp_pluck_bias):
                 section_idea.arp_events.append(event)
 
     if section == "intro":
@@ -883,9 +1216,11 @@ def build_section_events(section_idea: SectionIdea, key_label: str, mode: str, g
         section_idea.motif_summary = "Strongest hook statement: repeated motif, varied answer, lift, and resolution."
 
 
-def arp_events_for_bar(chord: ChordIdea, start: int, section: str, option_id: str, complexity: str, genre: str):
+def arp_events_for_bar(chord: ChordIdea, start: int, section: str, option_id: str, complexity: str, genre: str, artist_arp_pluck_bias: str = "medium"):
     base = sorted(dict.fromkeys(chord.voicing[1:] if len(chord.voicing) > 3 else chord.voicing))
     if not base:
+        return []
+    if artist_arp_pluck_bias == "low" and section in ("intro", "breakdown"):
         return []
     if option_id == "classic_reliable":
         pattern_name = "up_down" if section == "drop" else "up"
@@ -893,7 +1228,7 @@ def arp_events_for_bar(chord: ChordIdea, start: int, section: str, option_id: st
         pattern_name = "octave_spread"
     else:
         pattern_name = "syncopated_pluck" if section == "drop" else "down"
-    step = 0.25 if section == "drop" and (complexity in ("advanced", "experimental") or genre == "classic_2000s_trance") else 0.5
+    step = 0.25 if section == "drop" and (complexity in ("advanced", "experimental") or genre == "classic_2000s_trance" or artist_arp_pluck_bias in ("medium_high", "high")) else 0.5
     if pattern_name == "down":
         order = list(reversed(base))
     elif pattern_name == "up_down":
@@ -910,8 +1245,14 @@ def arp_events_for_bar(chord: ChordIdea, start: int, section: str, option_id: st
     positions = [round(i * step, 3) for i in range(int(4 / step))]
     if pattern_name == "syncopated_pluck":
         positions = [0.0, 0.75, 1.5, 2.0, 2.75, 3.5]
+    if artist_arp_pluck_bias == "low":
+        positions = positions[::4] if section == "drop" else positions[::6]
+    elif artist_arp_pluck_bias == "low_medium":
+        positions = positions[::2]
+    elif artist_arp_pluck_bias in ("medium_high", "high") and section in ("intro", "build", "drop"):
+        positions = sorted(set(positions + [0.5, 1.5, 2.5, 3.5]))
     for idx, beat in enumerate(positions):
-        if section == "intro" and idx % 2 == 1:
+        if section == "intro" and idx % 2 == 1 and artist_arp_pluck_bias not in ("medium_high", "high"):
             continue
         note = order[idx % len(order)]
         events.append({"start": start + tick(beat), "duration": tick(step * 0.72), "note": note, "velocity": 56 if section == "intro" else 70 if section == "breakdown" else 82, "pattern": pattern_name})
@@ -1229,6 +1570,36 @@ def build_instant_hummability_audit(option_id: str, hook_identity, score_detail,
     }
 
 
+def artist_direction_validation_warnings(controls, sections) -> list[str]:
+    warnings = list(controls.get("artist_validation_warnings", []))
+    direction = controls.get("artist_direction", "none")
+    if direction == "none":
+        return warnings
+    if not controls.get("artist_profile"):
+        warnings.append("artist_direction missing from metadata")
+        return warnings
+    arp_count = sum(len(section.arp_events) for section in sections)
+    melody_count = sum(len(section.melody_events) for section in sections)
+    bass_count = sum(len(section.bass_events) for section in sections)
+    breakdown = next((section for section in sections if section.key == "breakdown"), None)
+    drop = next((section for section in sections if section.key == "drop"), None)
+    if controls.get("artist_arp_pluck_bias") in ("medium_high", "high") and arp_count < 24:
+        warnings.append("arp/pluck bias not reflected in arp note count")
+    if direction in ("alan_walker", "lost_frequencies") and (melody_count > 90 or arp_count > 32):
+        warnings.append("Alan Walker or Lost Frequencies profile too dense")
+    if direction in ("marlo", "rubik") and drop and sum(event["velocity"] for event in drop.melody_events + drop.arp_events) < 1200:
+        warnings.append("MaRLo/Rub!k profile too weak in drop energy")
+    if direction == "deadmau5" and (melody_count > 90 or controls.get("energy") in ("peak_time", "festival_drop")):
+        warnings.append("deadmau5 profile too busy or too euphoric")
+    if direction == "andrew_rayel" and breakdown and len(breakdown.chord_events) < 2:
+        warnings.append("Andrew Rayel profile lacks piano/string-friendly breakdown")
+    if direction == "cosmic_gate" and controls.get("scale") == "major":
+        warnings.append("Cosmic Gate profile too bright or overly orchestral")
+    if bass_count <= 0:
+        warnings.append("artist bass bias produced no bass events")
+    return warnings
+
+
 def build_sections_for_hook(profile, controls, hook_identity, rng: random.Random):
     bars = int(controls["bars"])
     plan = section_plan(controls["generation_type"], controls["arrangement_section"], bars, controls["length_mode"])
@@ -1250,6 +1621,7 @@ def build_sections_for_hook(profile, controls, hook_identity, rng: random.Random
             section_energy,
             rng,
             chord_variant,
+            controls.get("artist_chord_bias", ""),
         )
         idea = SectionIdea(
             key=skey,
@@ -1273,6 +1645,8 @@ def build_sections_for_hook(profile, controls, hook_identity, rng: random.Random
             section_energy,
             hook_identity,
             controls["include_arpeggio_pluck"],
+            controls.get("artist_arp_pluck_bias", "medium"),
+            controls.get("artist_bass_bias", ""),
         )
         sections.append(idea)
         current_bar += max(1, section_bars)
@@ -1304,7 +1678,15 @@ def generate_best_hook(profile, controls, rng: random.Random):
     seed_offset = int(controls.get("variation_seed", 0) or 0) % 997
     for candidate_index in range(attempts):
         candidate_rng = random.Random(f"{profile['id']}|{candidate_index}|{seed_offset}|{controls['key']}|{controls['scale']}|{controls['genre']}")
-        hook_identity = create_hook_identity(controls["key"], controls["scale"], profile["id"], controls["genre"], candidate_index + seed_offset, candidate_rng)
+        hook_identity = create_hook_identity(
+            controls["key"],
+            controls["scale"],
+            profile["id"],
+            controls["genre"],
+            candidate_index + seed_offset,
+            candidate_rng,
+            controls.get("artist_motif_style", ""),
+        )
         sections = build_sections_for_hook(profile, controls, hook_identity, candidate_rng)
         score_detail = score_hook_identity(profile["id"], sections, hook_identity)
         candidates.append({
@@ -1344,7 +1726,13 @@ def generate_option(profile, controls, rng: random.Random) -> GeneratedOption:
     strongest_hook_bar = next((section.start_bar + 1 for section in sections if section.key == "drop"), sections[-1].start_bar + 1 if sections else 1)
     score_detail = winner["score_detail"]
     hook_metadata = build_hook_metadata(profile["id"], hook_identity, score_detail, strongest_hook_bar)
+    hook_metadata["artist_direction"] = controls.get("artist_direction", "none")
+    hook_metadata["artist_direction_label"] = controls.get("artist_direction_label", "None")
+    hook_metadata["artist_profile_summary"] = controls.get("artist_profile_summary", "No artist direction selected.")
     melody_audit = build_melody_audit(profile["id"], hook_identity, score_detail, audition, audition["selected_candidate_rank"])
+    artist_warnings = artist_direction_validation_warnings(controls, sections)
+    melody_audit["artist_direction"] = controls.get("artist_direction", "none")
+    melody_audit["artist_validation_warnings"] = artist_warnings
     core_hook_audit = build_core_hook_audit(hook_identity, score_detail)
     full_arrangement_melody_audit = build_full_arrangement_melody_audit(sections, score_detail)
     instant_hummability_audit = build_instant_hummability_audit(profile["id"], hook_identity, score_detail, sections)
@@ -1379,6 +1767,10 @@ def generate_option(profile, controls, rng: random.Random) -> GeneratedOption:
         core_hook_audit=core_hook_audit,
         full_arrangement_melody_audit=full_arrangement_melody_audit,
         instant_hummability_audit=instant_hummability_audit,
+        artist_direction=controls.get("artist_direction", "none"),
+        artist_direction_label=controls.get("artist_direction_label", "None"),
+        artist_profile_summary=controls.get("artist_profile_summary", "No artist direction selected."),
+        artist_profile=controls.get("artist_profile", {}),
         top_candidate_summaries=audition["top_candidate_summaries"],
     )
 
@@ -1394,7 +1786,7 @@ def normalize_controls(raw):
     generation_type = raw.get("generation_type", "full_section_sketch")
     genre = raw.get("genre", "uplifting_trance")
     complexity = raw.get("complexity", "medium")
-    return {
+    controls = {
         "key": parsed.label,
         "scale": scale,
         "bpm": clamp(int(raw.get("bpm", 138)), 120, 150),
@@ -1411,11 +1803,37 @@ def normalize_controls(raw):
         "regenerate_mode": raw.get("regenerate_mode", "full_option"),
         "variation_seed": raw.get("variation_seed", 0),
     }
+    return apply_artist_direction_to_controls(raw, controls)
 
 
 def generate_edm_ideas(raw_controls) -> GenerationResult:
     controls = normalize_controls(raw_controls)
-    seed_text = "|".join(str(controls[key]) for key in sorted(controls))
+    seed_keys = [
+        "arrangement_section",
+        "audition_depth",
+        "bars",
+        "bpm",
+        "complexity",
+        "creative_risk",
+        "energy",
+        "generation_type",
+        "genre",
+        "include_arpeggio_pluck",
+        "key",
+        "length_mode",
+        "regenerate_mode",
+        "scale",
+        "variation_seed",
+    ]
+    if controls.get("artist_direction") != "none":
+        seed_keys += [
+            "artist_direction",
+            "artist_chord_bias",
+            "artist_motif_style",
+            "artist_arp_pluck_bias",
+            "artist_bass_bias",
+        ]
+    seed_text = "|".join(str(controls.get(key, "")) for key in seed_keys)
     rng = random.Random(seed_text)
     options = [generate_option(profile, controls, rng) for profile in OPTION_PROFILES]
     return GenerationResult(
@@ -1427,6 +1845,11 @@ def generate_edm_ideas(raw_controls) -> GenerationResult:
         generation_type=GENERATION_LABELS.get(controls["generation_type"], controls["generation_type"]),
         arrangement_bars=arrangement_length_bars(controls),
         length_mode=controls["length_mode"],
+        artist_direction=controls.get("artist_direction", "none"),
+        artist_direction_label=controls.get("artist_direction_label", "None"),
+        artist_profile_summary=controls.get("artist_profile_summary", "No artist direction selected."),
+        artist_profile=controls.get("artist_profile", {}),
+        artist_validation_warnings=controls.get("artist_validation_warnings", []),
         options=options,
     )
 
@@ -1440,6 +1863,10 @@ def option_preview_dict(option: GeneratedOption):
         "bpm": option.bpm,
         "genre": option.genre,
         "generation_type": option.generation_type,
+        "artist_direction": option.artist_direction,
+        "artist_direction_label": option.artist_direction_label,
+        "artist_profile_summary": option.artist_profile_summary,
+        "artist_profile": option.artist_profile,
         "hook_summary": option.hook_summary,
         "core_motif_notes": option.core_motif_notes,
         "core_motif_rhythm": option.core_motif_rhythm,

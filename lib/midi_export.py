@@ -622,6 +622,14 @@ def validation_report(result, manifest, files_on_disk=None):
             option.id: option.instant_hummability_audit.get("instant_hummability_score")
             for option in result.options
         },
+        "artist_direction": getattr(result, "artist_direction", "none"),
+        "artist_direction_label": getattr(result, "artist_direction_label", "None"),
+        "artist_profile_summary": getattr(result, "artist_profile_summary", ""),
+        "artist_validation_warnings": list(getattr(result, "artist_validation_warnings", [])) + [
+            warning
+            for option in result.options
+            for warning in option.melody_audit.get("artist_validation_warnings", [])
+        ],
         "melody_validation_issues": melody_issues,
         "melody_strength_scores": {
             option.id: option.melody_strength_score
@@ -733,6 +741,10 @@ def export_idea_pack(result, exports_dir: Path, app_version: str):
             "key": result.key,
             "scale": result.scale,
             "scale_id": result.scale_id,
+            "artist_direction": getattr(result, "artist_direction", "none"),
+            "artist_direction_label": getattr(result, "artist_direction_label", "None"),
+            "artist_profile_summary": getattr(result, "artist_profile_summary", ""),
+            "artist_profile": getattr(result, "artist_profile", {}),
             "genre": result.genre,
             "generation_type": result.generation_type,
             "arrangement_length_bars": result.arrangement_bars,
@@ -754,6 +766,8 @@ def export_idea_pack(result, exports_dir: Path, app_version: str):
             f"Scale: {result.scale}",
             f"BPM: {result.bpm}",
             f"Genre: {result.genre}",
+            f"Artist Direction: {getattr(result, 'artist_direction', 'none')}",
+            f"Artist Direction Summary: {getattr(result, 'artist_profile_summary', '')}",
             "",
         ]
         for option in result.options:
